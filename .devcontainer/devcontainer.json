@@ -1,0 +1,7 @@
+{
+  "name": "Linker Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "workspaceFolder": "/workspaces/Linker"
+}

@@ -1,7 +1,27 @@
 {
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "Linker Dev Container",
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "workspaceFolder": "/workspaces/Linker"
+  // Node toolchain + a Docker daemon inside the container (so `docker compose`
+  // for Postgres works from within the dev container).
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  // Express app + PostgreSQL.
+  "forwardPorts": [3000, 5432],
+  "postCreateCommand": "test -f package.json && npm install || echo 'no package.json yet — skipping npm install'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
 }

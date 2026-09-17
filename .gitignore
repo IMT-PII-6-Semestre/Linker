@@ -1,0 +1,25 @@
+# Claude — nada da pasta .claude deve ser commitado
+.claude/
+CLAUDE.md
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+
+# Variáveis de ambiente
+.env
+.env.*
+!.env.example
+
+# Logs e saídas
+logs/
+*.log
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

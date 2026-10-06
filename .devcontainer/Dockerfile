@@ -1,3 +1,3 @@
-# Pinned tag for reproducible builds (see .devcontainer/devcontainer.json for
-# the Node toolchain, which is installed via Dev Container features).
-FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
+# Node 22 LTS já vem na imagem (Docker dentro do container vem pela feature
+# docker-in-docker em devcontainer.json).
+FROM mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm

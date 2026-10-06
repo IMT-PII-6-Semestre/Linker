@@ -20,14 +20,18 @@ rodando (`docker compose down` para parar).
 
 ## Development Container
 
-O repositório inclui uma configuração de Dev Container em `.devcontainer/`:
+O repositório inclui uma configuração de Dev Container em `.devcontainer/`, que
+dá a todo mundo o mesmo ambiente Linux, seja o host Windows, macOS ou Linux:
 
-- base Ubuntu 24.04 (tag fixa, build reproduzível);
-- Node.js 20 e `npm` instalados via Dev Container features;
+- imagem `javascript-node` com **Node.js 22 LTS** (o `package.json` exige `>=20`);
 - Docker disponível dentro do container (para subir o Postgres com
   `docker compose`);
 - portas `3000` (app) e `5432` (Postgres) encaminhadas automaticamente;
-- `npm install` roda ao criar o container, se já existir um `package.json`.
+- dependências instaladas ao criar o container: `npm ci` quando há
+  `package-lock.json` (commite o lock para todos terem as mesmas versões),
+  senão `npm install`.
+
+Mudou a configuração do container? Rode **Dev Containers: Rebuild Container**.
 
 ### Abrindo no VS Code
 

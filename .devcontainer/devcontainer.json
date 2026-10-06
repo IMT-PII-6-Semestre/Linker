@@ -2,19 +2,22 @@
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "Linker Dev Container",
   "build": {
-    "dockerfile": "Dockerfile"
+    "dockerfile": "Dockerfile",
+    "context": ".."
   },
-  // Node toolchain + a Docker daemon inside the container (so `docker compose`
-  // for Postgres works from within the dev container).
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "NPM_CONFIG_UPDATE_NOTIFIER": "false"
+  },
+  // Docker daemon inside the container (so `docker compose` for Postgres works
+  // from within the dev container).
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
-    },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   // Express app + PostgreSQL.
   "forwardPorts": [3000, 5432],
-  "postCreateCommand": "test -f package.json && npm install || echo 'no package.json yet — skipping npm install'",
+  "postCreateCommand": "if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi",
   "customizations": {
     "vscode": {
       "extensions": [

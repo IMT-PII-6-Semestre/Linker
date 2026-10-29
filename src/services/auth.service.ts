@@ -6,6 +6,7 @@ import { conflito, naoAutorizado } from '../errors/app-error.js';
 import * as empresas from '../repositories/empresa.repository.js';
 import * as perfis from '../repositories/perfil-candidato.repository.js';
 import * as usuarios from '../repositories/usuario.repository.js';
+import * as vagas from '../repositories/vaga.repository.js';
 import type {
   EntradaCadastroCandidato,
   EntradaCadastroEmpresa,
@@ -18,17 +19,18 @@ const CUSTO_BCRYPT = 12;
 export async function cadastrarCandidato(entrada: EntradaCadastroCandidato) {
   const senhaHash = await bcrypt.hash(entrada.senha, CUSTO_BCRYPT);
 
+  const { nomeCompleto, cpf, email, celular, senha: _senha, ...perfil } = entrada;
+
   const usuario = await emTransacao(async (cliente) => {
     const criado = await usuarios.inserirUsuario(cliente, {
       tipo: 'candidato',
-      nomeCompleto: entrada.nomeCompleto,
-      email: entrada.email,
+      nomeCompleto,
+      email,
       senhaHash,
-      cpfCnpj: entrada.cpf,
-      idade: entrada.idade,
-      cep: entrada.cep,
+      cpfCnpj: cpf,
+      telefone: celular,
     });
-    await perfis.inserirPerfilCandidato(cliente, { usuarioId: criado.id });
+    await perfis.inserirPerfilCandidato(cliente, criado.id, perfil);
     return criado;
   }).catch(traduzirErroDeCadastro);
 
@@ -41,18 +43,19 @@ export async function cadastrarEmpresa(entrada: EntradaCadastroEmpresa) {
   const usuario = await emTransacao(async (cliente) => {
     const criado = await usuarios.inserirUsuario(cliente, {
       tipo: 'empresa',
-      nomeCompleto: entrada.nomeCompleto,
+      nomeCompleto: entrada.nomeEmpresa,
       email: entrada.email,
       senhaHash,
       cpfCnpj: entrada.cnpj,
-      cep: entrada.cep,
+      telefone: entrada.telefone,
     });
     await empresas.inserirEmpresa(cliente, {
       usuarioId: criado.id,
-      cnpj: entrada.cnpj,
-      razaoSocial: entrada.razaoSocial,
-      anosFundacao: entrada.anosFundacao,
+      dataFundacao: entrada.dataFundacao,
+      endereco: entrada.endereco,
     });
+    // O cadastro da empresa já publica a primeira vaga (etapas "A vaga" e "Requisitos" do front).
+    await vagas.inserirVaga(cliente, criado.id, entrada.vaga);
     return criado;
   }).catch(traduzirErroDeCadastro);
 
@@ -67,7 +70,9 @@ export async function login(entrada: EntradaLogin) {
   const confere = await bcrypt.compare(entrada.senha, credencial.senhaHash);
   if (!confere) throw naoAutorizado('E-mail ou senha inválidos');
 
-  return { token: gerarToken(credencial.id, credencial.tipo) };
+  // Mesmo formato do cadastro: o front monta a Session a partir de `usuario`.
+  const { usuario } = credencial;
+  return { usuario, token: gerarToken(usuario.id, usuario.tipo) };
 }
 
 // 23505 = unique_violation; o índice único de `usuario.email` é a única fonte

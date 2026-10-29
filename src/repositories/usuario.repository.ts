@@ -10,13 +10,12 @@ export async function inserirUsuario(
     email: string;
     senhaHash: string;
     cpfCnpj: string;
-    idade?: number;
-    cep?: string;
+    telefone: string;
   },
 ): Promise<Usuario> {
   const { rows } = await cliente.query(
-    `INSERT INTO usuario (tipo, nome_completo, email, senha_hash, cpf_cnpj, idade, cep)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO usuario (tipo, nome_completo, email, senha_hash, cpf_cnpj, telefone)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id, tipo, nome_completo, email, criado_em`,
     [
       dados.tipo,
@@ -24,8 +23,7 @@ export async function inserirUsuario(
       dados.email,
       dados.senhaHash,
       dados.cpfCnpj,
-      dados.idade ?? null,
-      dados.cep ?? null,
+      dados.telefone,
     ],
   );
   return paraUsuario(rows[0]);
@@ -34,15 +32,11 @@ export async function inserirUsuario(
 /** Só esta função devolve o hash — usada exclusivamente no login. */
 export async function buscarCredencialPorEmail(email: string) {
   const { rows } = await pool.query(
-    'SELECT id, tipo, senha_hash FROM usuario WHERE email = $1',
+    'SELECT id, tipo, nome_completo, email, criado_em, senha_hash FROM usuario WHERE email = $1',
     [email],
   );
   return rows[0]
-    ? {
-        id: rows[0].id as number,
-        tipo: rows[0].tipo as TipoUsuario,
-        senhaHash: rows[0].senha_hash as string,
-      }
+    ? { usuario: paraUsuario(rows[0]), senhaHash: rows[0].senha_hash as string }
     : null;
 }
 

@@ -1,0 +1,7 @@
+# Com core.autocrlf=true (padrão do Git no Windows), scripts de shell e SQL viriam
+# com CRLF e quebrariam dentro do container Linux (start.sh no dev container,
+# 01-schema.sql no Postgres). O .cmd precisa de CRLF para o cmd.exe.
+*.sh   text eol=lf
+*.sql  text eol=lf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf

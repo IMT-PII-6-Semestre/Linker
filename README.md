@@ -26,6 +26,10 @@ validação com **Zod**, senha com **bcrypt**, autenticação com **JWT**.
 
 Pré-requisitos: **Docker** (Docker Desktop no macOS/Windows) e **Node.js ≥ 20**.
 
+> **Windows:** use `.\start.cmd` no lugar do `./start.sh`. O guia completo, com
+> pré-requisitos, comandos em PowerShell e problemas comuns, está em
+> **[README.windows.md](README.windows.md)**.
+
 ```bash
 ./start.sh
 ```
@@ -83,14 +87,23 @@ Todas as rotas ficam sob `/api`. O corpo das requisições e das respostas é JS
 
 | Método | Rota | Auth | Corpo | Resposta |
 |---|---|---|---|---|
-| `POST` | `/api/auth/cadastro/candidato` | — | `nomeCompleto`, `email`, `senha`, `cpf`, `idade?`, `cep?` | `201` `{ usuario, token }` |
-| `POST` | `/api/auth/cadastro/empresa` | — | `nomeCompleto`, `email`, `senha`, `cnpj`, `razaoSocial`, `anosFundacao?`, `cep?` | `201` `{ usuario, token }` |
-| `POST` | `/api/auth/login` | — | `email`, `senha` | `200` `{ token }` |
+| `POST` | `/api/auth/cadastro/candidato` | — | `CandidatoSignUp` do front | `201` `{ usuario, token }` |
+| `POST` | `/api/auth/cadastro/empresa` | — | `EmpresaSignUp` do front (com a primeira `vaga`) | `201` `{ usuario, token }` |
+| `POST` | `/api/auth/login` | — | `email`, `senha` | `200` `{ usuario, token }` |
+
+O corpo dos cadastros é o mesmo payload que o front monta em
+`Linker-front-rn/src/features/auth/domain/registration.ts` (`toCandidatoSignUp` /
+`toEmpresaSignUp`) — pode mandar como está, com máscaras.
 
 Regras de validação (`src/schemas/auth.schema.ts`):
 
-- a senha tem de **8 a 72** caracteres;
-- CPF, CNPJ e CEP vão **só com dígitos** (11, 14 e 8 dígitos);
+- a senha tem de **6 a 72** caracteres (o mínimo acompanha o front);
+- CPF, CNPJ, CEP, celular e telefone podem vir **com ou sem máscara**; o back
+  guarda só os dígitos e confere os dígitos verificadores de CPF/CNPJ;
+- datas vêm como `dd/mm/aaaa` e viram `DATE`. Nascimento exige 14 a 100 anos;
+  fundação não pode estar no futuro;
+- escolaridade, tipo de contrato, modalidade e faixa salarial só aceitam os
+  rótulos dos chips do front (listas no topo do schema);
 - o e-mail é normalizado (sem espaços nas pontas, tudo minúsculo).
 
 Exemplos:
@@ -98,11 +111,15 @@ Exemplos:
 ```bash
 curl -X POST localhost:3000/api/auth/cadastro/candidato \
   -H 'Content-Type: application/json' \
-  -d '{"nomeCompleto":"Ana Souza","email":"ana@email.com","senha":"12345678","cpf":"12345678901"}'
+  -d '{"nomeCompleto":"Ana Souza","cpf":"529.982.247-25","dataNascimento":"15/03/2000",
+       "email":"ana@email.com","celular":"(11) 98765-4321","escolaridade":"Superior completo",
+       "cargoDesejado":"Dev Front","formacao":"CC - IMT","cep":"09580-900",
+       "tiposContrato":["CLT"],"experiencias":"Primeiro emprego","anosExperiencia":0,"faixaSalarial":"A combinar",
+       "hardSkills":["React"],"softSkills":["Comunicação"],"modalidades":["Remoto"],"senha":"123456"}'
 
 curl -X POST localhost:3000/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"ana@email.com","senha":"12345678"}'
+  -d '{"email":"ana@email.com","senha":"123456"}'
 ```
 
 O token é um JWT: `sub` é o id do usuário e `tipo` é `candidato` ou `empresa`.
@@ -126,7 +143,8 @@ Todo erro volta como `{ "erro": "mensagem" }`, com o status HTTP correspondente:
 
 ```
 .
-├── start.sh                # sobe tudo (Docker + Postgres + API)
+├── start.sh                # sobe tudo (Docker + Postgres + API) — macOS/Linux
+├── start.cmd / start.ps1   # o mesmo no Windows (ver README.windows.md)
 ├── docker-compose.yml      # Postgres 16 para desenvolvimento
 ├── db/init/01-schema.sql   # schema; roda na 1ª subida do banco
 ├── .env.example            # modelo do .env
@@ -173,8 +191,8 @@ O que fica em cada camada (e o que **não** fica):
 3. `services/auth.service.ts` gera o hash da senha e abre uma transação com
    `emTransacao`;
 4. dentro da transação, `usuario.repository` insere em `usuario` e
-   `empresa.repository` insere em `empresa`. Se um dos dois falhar, nenhum é
-   gravado;
+   `empresa.repository` insere em `empresa` e `vaga.repository` grava a primeira
+   vaga. Se um dos três falhar, nenhum é gravado;
 5. se o e-mail já existir (violação do índice único `23505`), a resposta é
    `409`. Se der tudo certo, o service devolve `{ usuario, token }` e o
    controller responde `201`.
@@ -240,11 +258,11 @@ Tabelas:
 
 | Tabela | O que guarda |
 |---|---|
-| `usuario` | base de todo usuário: `tipo` (`candidato`/`empresa`), nome, e-mail único, hash da senha, CPF/CNPJ |
-| `perfil_candidato` | extensão 1:1 do candidato: experiência, formação, projetos, skills |
-| `empresa` | extensão 1:1 da empresa: CNPJ, razão social, ano de fundação |
-| `vaga` | vagas de uma empresa (1:N) |
-| `swipe` | cada like/dislike. `alvo_tipo` + `alvo_id` apontam para uma vaga ou um candidato. Só pode haver uma decisão por par |
+| `usuario` | base de todo usuário: `tipo` (`candidato`/`empresa`), nome, e-mail único, hash da senha, CPF/CNPJ, telefone, foto |
+| `perfil_candidato` | extensão 1:1 do candidato: nascimento, CEP, escolaridade, cargo desejado, formação, experiências e anos de experiência, contratos, modalidades, faixa salarial, skills |
+| `empresa` | extensão 1:1 da empresa: data de fundação, endereço |
+| `vaga` | vagas de uma empresa (1:N): cargo, descrição, benefícios, horário, CEP, skills obrigatórias e desejáveis, experiência mínima, escolaridade, contrato, modalidade, faixa salarial |
+| `swipe` | cada like/pass sobre um par candidato–vaga; `autor` diz se quem decidiu foi o candidato ou a empresa (que avalia em nome de uma vaga). Uma decisão por lado, por par |
 | `match` | like recíproco: candidato + vaga + empresa |
 | `chat` / `mensagem` | um chat por match, com N mensagens |
 
@@ -303,11 +321,8 @@ Pronto:
 Falta (o front já tem as telas, usando dados fake):
 
 - **Perfil:** ler e editar o perfil, foto, CRUD de vagas;
-- **Feed:** listar vagas ou candidatos não avaliados, com filtro, e o swipe que
+- **Feed:** listar vagas (candidato) ou candidatos para uma vaga (empresa) não avaliados, com filtro, e o swipe que
   gera match quando o like é recíproco;
 - **Chat:** conversas, mensagens, desfazer match, bloquear, denunciar;
 - **Admin:** papel `admin` e endpoint de métricas;
-- **Alinhar o cadastro com o front:** o front coleta mais campos (data de
-  nascimento, celular, escolaridade, modalidades, faixa salarial...) do que o
-  schema atual aceita;
 - testes automatizados.

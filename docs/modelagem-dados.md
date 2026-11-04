@@ -41,6 +41,7 @@ no feed e o que o algoritmo usa para filtrar/ordenar vagas.
 | `usuario_id`      | FK → `usuario.id` | também é a PK da tabela (1:1) |
 | `data_nascimento` | —     | `DATE`; idade é derivada (mín. 14 anos) |
 | `cep`             | —     | localização / proximidade no feed |
+| `cidade`, `uf`, `lat`, `lng` | — | geocodificados do CEP ao salvar; nulos se a API de CEP falhar |
 | `escolaridade`    | —     | opção fixa (ver decisão 6) |
 | `cargo_desejado`  | —     | texto livre |
 | `formacao`        | —     | texto livre (curso e instituição) |
@@ -75,6 +76,7 @@ próprio cadastro da empresa.
 | `beneficios`     | —     | texto livre no MVP |
 | `horario`        | —     | texto livre ("seg a sex, 9h às 18h") |
 | `cep`            | —     | local de trabalho; base da distância no feed |
+| `cidade`, `uf`, `lat`, `lng` | — | geocodificados do CEP ao salvar; nulos se a API de CEP falhar |
 | `skills_obrigatorias[]` | — | ao menos uma; pesam mais no score |
 | `skills_desejaveis[]`   | — | opcional |
 | `experiencia_minima`    | — | anos, 0–60 (0 = aceita iniciante) |
@@ -201,6 +203,7 @@ CREATE TABLE perfil_candidato (
   usuario_id      BIGINT PRIMARY KEY REFERENCES usuario(id) ON DELETE CASCADE,
   data_nascimento DATE NOT NULL,
   cep             TEXT NOT NULL,
+  cidade TEXT, uf CHAR(2), lat DOUBLE PRECISION, lng DOUBLE PRECISION,
   escolaridade    TEXT NOT NULL,
   cargo_desejado  TEXT NOT NULL,
   formacao        TEXT NOT NULL,
@@ -227,6 +230,7 @@ CREATE TABLE vaga (
   beneficios     TEXT NOT NULL,
   horario        TEXT NOT NULL,              -- texto livre ("seg a sex, 9h às 18h")
   cep            TEXT NOT NULL,              -- local de trabalho; base da distância no feed
+  cidade TEXT, uf CHAR(2), lat DOUBLE PRECISION, lng DOUBLE PRECISION,
   skills_obrigatorias TEXT[] NOT NULL,       -- ao menos uma; pesam mais no score
   skills_desejaveis   TEXT[] NOT NULL DEFAULT '{}',
   experiencia_minima  INTEGER NOT NULL CHECK (experiencia_minima BETWEEN 0 AND 60),

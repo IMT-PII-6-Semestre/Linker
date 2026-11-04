@@ -1,5 +1,6 @@
 # Claude — nada da pasta .claude deve ser commitado
 .claude/
+.omc/
 CLAUDE.md
 
 # Node

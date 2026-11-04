@@ -8,7 +8,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "db:reset": "docker compose down -v && docker compose up -d"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

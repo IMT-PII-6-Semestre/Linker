@@ -11,15 +11,10 @@ export async function pesosAtivos(): Promise<{ versao: number; pesos: Pesos }> {
 }
 
 /**
- * Pares candidato × vaga que passam nos filtros eliminatórios da spec, para quem está vendo:
- * `candidatoId` fixo (feed do candidato) ou `vagaId` fixo (feed da empresa). Exatamente um dos dois.
- * Cargo e texto livre são calculados aqui porque dependem de pg_trgm / full-text.
- * ponytail: unaccent não é IMMUTABLE, então não há índice nessas expressões; no volume do PII
- * não faz falta. Índice funcional (wrapper IMMUTABLE) se o feed passar de milhares de pares.
+ * Colunas que `paraPost` (feed.service.ts) lê de um par candidato × vaga. Exige os aliases
+ * p (perfil_candidato), uc (usuário candidato), v (vaga) e ue (usuário empresa). A fase 4 reaproveita.
  */
-export async function paresDoFeed(f: { candidatoId: number | null; vagaId: number | null; vistoPor: Lado }) {
-  const { rows } = await pool.query(
-    `SELECT p.usuario_id AS candidato_id, uc.nome_completo AS candidato_nome, uc.foto_url AS candidato_foto,
+export const COLUNAS_PAR = `p.usuario_id AS candidato_id, uc.nome_completo AS candidato_nome, uc.foto_url AS candidato_foto,
             date_part('year', age(p.data_nascimento))::int AS idade,
             p.escolaridade AS c_escolaridade, p.cargo_desejado, p.formacao, p.experiencias, p.anos_experiencia,
             p.hard_skills, p.soft_skills, p.modalidades, p.tipos_contrato, p.faixa_salarial AS c_faixa_salarial,
@@ -28,7 +23,18 @@ export async function paresDoFeed(f: { candidatoId: number | null; vagaId: numbe
             v.cargo, v.descricao, v.beneficios, v.horario, v.cep, v.skills_obrigatorias, v.skills_desejaveis,
             v.experiencia_minima, v.escolaridade AS v_escolaridade, v.tipo_contrato, v.modalidade,
             v.faixa_salarial AS v_faixa_salarial,
-            v.cidade AS v_cidade, v.uf AS v_uf, v.lat AS v_lat, v.lng AS v_lng,
+            v.cidade AS v_cidade, v.uf AS v_uf, v.lat AS v_lat, v.lng AS v_lng`;
+
+/**
+ * Pares candidato × vaga que passam nos filtros eliminatórios da spec, para quem está vendo:
+ * `candidatoId` fixo (feed do candidato) ou `vagaId` fixo (feed da empresa). Exatamente um dos dois.
+ * Cargo e texto livre são calculados aqui porque dependem de pg_trgm / full-text.
+ * ponytail: unaccent não é IMMUTABLE, então não há índice nessas expressões; no volume do PII
+ * não faz falta. Índice funcional (wrapper IMMUTABLE) se o feed passar de milhares de pares.
+ */
+export async function paresDoFeed(f: { candidatoId: number | null; vagaId: number | null; vistoPor: Lado }) {
+  const { rows } = await pool.query(
+    `SELECT ${COLUNAS_PAR},
             similarity(unaccent(lower(p.cargo_desejado)), unaccent(lower(v.cargo)))::float8 AS sim_cargo,
             -- OR entre os termos da descrição (plainto_tsquery usa AND e quase nunca casaria); 32 = r/(r+1) → [0,1)
             ts_rank(to_tsvector('portuguese', p.formacao || ' ' || p.experiencias),
@@ -95,18 +101,38 @@ export async function travarPar(cliente: PoolClient, candidatoId: number, vagaId
   await cliente.query('SELECT pg_advisory_xact_lock($1::bigint)', [candidatoId * 1_000_000 + vagaId]);
 }
 
-/** Primeira decisão vale: um swipe repetido devolve a direção já gravada, sem sobrescrever. */
+/**
+ * Grava o swipe e diz se ele é novo. Primeira decisão vale: um swipe repetido não sobrescreve.
+ * O service só cria match com swipe novo; um repetido nunca recria o match desfeito ou bloqueado.
+ */
 export async function registrarSwipe(
   cliente: PoolClient,
   s: { candidatoId: number; vagaId: number; autor: Lado; direcao: 'like' | 'pass' },
-): Promise<'like' | 'pass'> {
-  const { rows } = await cliente.query(
+): Promise<boolean> {
+  const { rowCount } = await cliente.query(
     `INSERT INTO swipe (candidato_id, vaga_id, autor, direcao) VALUES ($1, $2, $3, $4)
-     ON CONFLICT (candidato_id, vaga_id, autor) DO UPDATE SET direcao = swipe.direcao
-     RETURNING direcao`,
+     ON CONFLICT (candidato_id, vaga_id, autor) DO NOTHING`,
     [s.candidatoId, s.vagaId, s.autor, s.direcao],
   );
-  return rows[0].direcao;
+  return rowCount === 1;
+}
+
+/** id do match do par, ou null (nunca houve, ou foi desfeito / bloqueado). */
+export async function matchDoPar(cliente: PoolClient, candidatoId: number, vagaId: number): Promise<number | null> {
+  const { rows } = await cliente.query('SELECT id FROM match WHERE candidato_id = $1 AND vaga_id = $2', [
+    candidatoId,
+    vagaId,
+  ]);
+  return rows[0]?.id ?? null;
+}
+
+/** Um dos dois bloqueou o outro? Vale para qualquer vaga da empresa: o bloqueio é entre pessoas. */
+export async function haBloqueio(cliente: PoolClient, a: number, b: number): Promise<boolean> {
+  const { rowCount } = await cliente.query(
+    'SELECT 1 FROM bloqueio WHERE (autor_id = $1 AND alvo_id = $2) OR (autor_id = $2 AND alvo_id = $1)',
+    [a, b],
+  );
+  return rowCount === 1;
 }
 
 export async function outroLadoCurtiu(cliente: PoolClient, candidatoId: number, vagaId: number, outro: Lado) {

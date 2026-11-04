@@ -103,6 +103,13 @@ Todas as rotas ficam sob `/api`. O corpo das requisições e das respostas é JS
 | `DELETE` | `/api/vagas/:id` | empresa dona | — | `204` |
 | `GET` | `/api/feed` | candidato, empresa | `?query=&uf=&vagaId=` | `200` `FeedPost[]` do front, ordenado por score |
 | `POST` | `/api/swipe` | candidato, empresa | `{ postId, direction: 'like' \| 'pass', vagaId }` | `200` `{ matched, matchId }` |
+| `GET` | `/api/conversas` | candidato, empresa | — | `200` `Conversation[]` do front, mais recentes primeiro, com `lastMessage` e `unreadCount` |
+| `GET` | `/api/conversas/:id` | participante | — | `200` `Conversation` (com o `post` que gerou o match) |
+| `GET` | `/api/conversas/:id/mensagens` | participante | — | `200` `Message[]` em ordem cronológica; marca como lidas |
+| `POST` | `/api/conversas/:id/mensagens` | participante | `{ text }` (1 a 1000 caracteres) | `201` `Message` |
+| `DELETE` | `/api/conversas/:id` | participante | — | `204` desfaz o match (some chat e mensagens) |
+| `POST` | `/api/conversas/:id/bloqueio` | participante | — | `204` bloqueia o outro lado e desfaz o match |
+| `POST` | `/api/conversas/:id/denuncia` | participante | `{ reason, details }` (`reason` = `REPORT_REASONS` do front) | `204` |
 
 - **Login por origem:** `admin` só entra pelo `web`; `candidato` e `empresa` só pelo
   `mobile`. Origem errada → `403`.
@@ -117,6 +124,9 @@ Todas as rotas ficam sob `/api`. O corpo das requisições e das respostas é JS
 - **Swipe:** `postId` é a vaga (candidato) ou o candidato (empresa, que manda também
   a `vagaId`). A primeira decisão de cada lado vale. Like dos dois lados cria o
   `match` e o `chat`; `matchId` é o id da conversa.
+- **Chat:** o `:id` é o id do match (o mesmo `matchId` do swipe). Quem não participa da
+  conversa recebe `404`, igual a uma conversa que não existe. Denunciar não encerra a
+  conversa; bloquear e desfazer apagam o match. Sem websocket: o front usa polling.
 
 O corpo dos cadastros é o mesmo payload que o front monta em
 `Linker-front-rn/src/features/auth/domain/registration.ts` (`toCandidatoSignUp` /
@@ -279,7 +289,7 @@ Exemplo: `GET /api/vagas/:id`.
 `docker-compose.yml` sobe só o Postgres 16, na porta `5432`.
 
 - O schema está em `db/init/`, em arquivos numerados que rodam em ordem
-  (`01-schema.sql`, `02-admin.sql`, `03-localizacao.sql`, `04-match.sql`), e o
+  (`01-schema.sql`, `02-admin.sql`, `03-localizacao.sql`, `04-match.sql`, `05-chat.sql`), e o
   `99-seed.sql` grava os dados de teste. Eles rodam **apenas na primeira
   subida**, porque o `docker-entrypoint-initdb.d` só executa quando o volume está
   vazio. Mudou o schema? Recrie o banco (isto **apaga os dados**):
@@ -302,8 +312,9 @@ Tabelas:
 | `vaga` | vagas de uma empresa (1:N): cargo, descrição, benefícios, horário, CEP (com cidade, UF e coordenadas), skills obrigatórias e desejáveis, experiência mínima, escolaridade, contrato, modalidade, faixa salarial |
 | `swipe` | cada like/pass sobre um par candidato–vaga; `autor` diz se quem decidiu foi o candidato ou a empresa (que avalia em nome de uma vaga). Uma decisão por lado, por par |
 | `match` | like recíproco: candidato + vaga + empresa |
-| `chat` / `mensagem` | um chat por match, com N mensagens |
+| `chat` / `mensagem` | um chat por match, com N mensagens (`lida_em` marca a leitura) |
 | `bloqueio` | quem bloqueou quem; o feed esconde o par nos dois sentidos |
+| `denuncia` | denúncias de um lado contra o outro, com motivo e detalhes; sobrevivem ao fim do match |
 | `config_pesos` | pesos do score, versionados; só uma versão ativa (a v1 vem no `04-match.sql`) |
 | `exibicao` | log de cada item exibido no feed: features, scores, posição, se veio da exploração e versão dos pesos |
 
@@ -366,10 +377,10 @@ Pronto:
 - perfil (ler, editar, foto) e CRUD de vagas, com geocodificação do CEP;
 - feed com o algoritmo de match (filtros, score, exploração ε-greedy e log em
   `exibicao`) e swipe com match transacional;
+- chat: conversas, mensagens com não lidas, desfazer match, bloquear e denunciar;
 - testes automatizados (`npm test`).
 
 Falta (o front já tem as telas, usando dados fake):
 
-- **Chat:** conversas, mensagens, desfazer match, bloquear, denunciar;
 - **Admin:** endpoint de métricas (`/api/admin/snapshot`);
 - **Validação do algoritmo:** script que recalibra os pesos a partir dos swipes.

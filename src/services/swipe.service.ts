@@ -31,10 +31,20 @@ export async function registrarSwipe(
 
   return emTransacao(async (cliente) => {
     await feed.travarPar(cliente, candidatoId, vagaId);
-    const decisao = await feed.registrarSwipe(cliente, { candidatoId, vagaId, autor, direcao: e.direction });
+    const semMatch = { matched: false, matchId: null };
+    const novo = await feed.registrarSwipe(cliente, { candidatoId, vagaId, autor, direcao: e.direction });
+    if (!novo) {
+      // Repetido: só informa o match que ainda existe. Recriar aqui desfaria um unmatch ou um bloqueio.
+      const existente = await feed.matchDoPar(cliente, candidatoId, vagaId);
+      return existente === null ? semMatch : { matched: true, matchId: String(existente) };
+    }
     const outro: Lado = autor === 'candidato' ? 'empresa' : 'candidato';
-    if (decisao !== 'like' || !(await feed.outroLadoCurtiu(cliente, candidatoId, vagaId, outro))) {
-      return { matched: false, matchId: null };
+    if (
+      e.direction !== 'like' ||
+      !(await feed.outroLadoCurtiu(cliente, candidatoId, vagaId, outro)) ||
+      (await feed.haBloqueio(cliente, candidatoId, empresaId))
+    ) {
+      return semMatch;
     }
     return { matched: true, matchId: String(await feed.criarMatch(cliente, candidatoId, vagaId, empresaId)) };
   });

@@ -101,18 +101,38 @@ export async function travarPar(cliente: PoolClient, candidatoId: number, vagaId
   await cliente.query('SELECT pg_advisory_xact_lock($1::bigint)', [candidatoId * 1_000_000 + vagaId]);
 }
 
-/** Primeira decisão vale: um swipe repetido devolve a direção já gravada, sem sobrescrever. */
+/**
+ * Grava o swipe e diz se ele é novo. Primeira decisão vale: um swipe repetido não sobrescreve.
+ * O service só cria match com swipe novo; um repetido nunca recria o match desfeito ou bloqueado.
+ */
 export async function registrarSwipe(
   cliente: PoolClient,
   s: { candidatoId: number; vagaId: number; autor: Lado; direcao: 'like' | 'pass' },
-): Promise<'like' | 'pass'> {
-  const { rows } = await cliente.query(
+): Promise<boolean> {
+  const { rowCount } = await cliente.query(
     `INSERT INTO swipe (candidato_id, vaga_id, autor, direcao) VALUES ($1, $2, $3, $4)
-     ON CONFLICT (candidato_id, vaga_id, autor) DO UPDATE SET direcao = swipe.direcao
-     RETURNING direcao`,
+     ON CONFLICT (candidato_id, vaga_id, autor) DO NOTHING`,
     [s.candidatoId, s.vagaId, s.autor, s.direcao],
   );
-  return rows[0].direcao;
+  return rowCount === 1;
+}
+
+/** id do match do par, ou null (nunca houve, ou foi desfeito / bloqueado). */
+export async function matchDoPar(cliente: PoolClient, candidatoId: number, vagaId: number): Promise<number | null> {
+  const { rows } = await cliente.query('SELECT id FROM match WHERE candidato_id = $1 AND vaga_id = $2', [
+    candidatoId,
+    vagaId,
+  ]);
+  return rows[0]?.id ?? null;
+}
+
+/** Um dos dois bloqueou o outro? Vale para qualquer vaga da empresa: o bloqueio é entre pessoas. */
+export async function haBloqueio(cliente: PoolClient, a: number, b: number): Promise<boolean> {
+  const { rowCount } = await cliente.query(
+    'SELECT 1 FROM bloqueio WHERE (autor_id = $1 AND alvo_id = $2) OR (autor_id = $2 AND alvo_id = $1)',
+    [a, b],
+  );
+  return rowCount === 1;
 }
 
 export async function outroLadoCurtiu(cliente: PoolClient, candidatoId: number, vagaId: number, outro: Lado) {

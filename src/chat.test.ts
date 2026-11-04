@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { pool } from './db/pool.js';
 import { aleatorio } from './services/feed.service.js';
-import { fixtures, usarServidor } from './test-helpers.js';
+import { fixtures, usarServidor, vagaValida } from './test-helpers.js';
 
 const { api } = usarServidor();
 const json = async (res: Response) => (await res.json()) as any;
@@ -179,4 +179,26 @@ test('denúncia: motivo do front, a conversa continua, e a denúncia sobrevive a
   await api(`/api/conversas/${conversa}`, { metodo: 'DELETE', token: c.token });
   assert.equal(await contar('SELECT count(*) FROM denuncia WHERE autor_id = $1', [c.id]), 1);
   assert.equal((await pool.query('SELECT match_id FROM denuncia WHERE autor_id = $1', [c.id])).rows[0].match_id, null);
+});
+
+test('bloqueio e unmatch não se desfazem repetindo o like pela API', async () => {
+  const likes = (x: Awaited<ReturnType<typeof par>>, vagaId = x.e.vagaId) =>
+    Promise.all([
+      post(x.c.token, '/api/swipe', { postId: vagaId, direction: 'like' }).then(json),
+      post(x.e.token, '/api/swipe', { postId: x.c.id, direction: 'like', vagaId }).then(json),
+    ]);
+  const matches = (candidatoId: number) => contar('SELECT count(*) FROM match WHERE candidato_id = $1', [candidatoId]);
+
+  const desfeito = await par();
+  await api(`/api/conversas/${desfeito.conversa}`, { metodo: 'DELETE', token: desfeito.c.token });
+  assert.deepEqual(await likes(desfeito), [{ matched: false, matchId: null }, { matched: false, matchId: null }]);
+  assert.equal(await matches(desfeito.c.id), 0);
+
+  const bloqueado = await par();
+  await post(bloqueado.c.token, `/api/conversas/${bloqueado.conversa}/bloqueio`, undefined);
+  assert.deepEqual(await likes(bloqueado), [{ matched: false, matchId: null }, { matched: false, matchId: null }]);
+  // Nem por outra vaga da mesma empresa: o bloqueio é entre as pessoas, não entre o par.
+  const outraVaga = (await json(await post(bloqueado.e.token, '/api/vagas', vagaValida))).id as string;
+  assert.deepEqual(await likes(bloqueado, outraVaga), [{ matched: false, matchId: null }, { matched: false, matchId: null }]);
+  assert.equal(await matches(bloqueado.c.id), 0);
 });

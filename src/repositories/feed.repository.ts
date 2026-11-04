@@ -11,6 +11,19 @@ export async function pesosAtivos(): Promise<{ versao: number; pesos: Pesos }> {
 }
 
 /**
+ * Grava uma nova versão de pesos (a seguinte à maior existente) **inativa**: o feed só passa a usá-la
+ * quando alguém ativar de propósito (ver `scripts/validar-pesos.ts`). Devolve o número da versão.
+ */
+export async function salvarPesos(pesos: Pesos, db: Pick<PoolClient, 'query'> = pool): Promise<number> {
+  const { rows } = await db.query(
+    `INSERT INTO config_pesos (versao, pesos, ativa)
+     SELECT COALESCE(MAX(versao), 0) + 1, $1::jsonb, false FROM config_pesos RETURNING versao`,
+    [JSON.stringify(pesos)],
+  );
+  return rows[0].versao;
+}
+
+/**
  * Colunas que `paraPost` (feed.service.ts) lê de um par candidato × vaga. Exige os aliases
  * p (perfil_candidato), uc (usuário candidato), v (vaga) e ue (usuário empresa). A fase 4 reaproveita.
  */

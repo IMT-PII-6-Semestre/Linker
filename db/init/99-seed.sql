@@ -36,3 +36,9 @@ INSERT INTO vaga (empresa_id, cargo, descricao, beneficios, horario, cep, skills
 SELECT id, 'Estagiário de TI', 'Suporte e automações.', 'Bolsa, VT', 'seg a sex, 13h às 18h', '20040020',
        '{Python}', '{Excel}', 0, 'Superior em andamento', 'Estágio', 'Presencial', 'Até R$ 2 mil'
 FROM usuario WHERE email = 'rh@empresabeta.com';
+
+-- Localização (o seed roda offline, sem a API de CEP).
+UPDATE perfil_candidato SET cidade = 'São Paulo',      uf = 'SP', lat = -23.5632188, lng = -46.6542596 WHERE cep = '01310100';
+UPDATE perfil_candidato SET cidade = 'Rio de Janeiro', uf = 'RJ', lat = -22.9004182, lng = -43.1780205 WHERE cep = '20040020';
+UPDATE vaga            SET cidade = 'São Paulo',      uf = 'SP', lat = -23.5632188, lng = -46.6542596 WHERE cep = '01310100';
+UPDATE vaga            SET cidade = 'Rio de Janeiro', uf = 'RJ', lat = -22.9004182, lng = -43.1780205 WHERE cep = '20040020';

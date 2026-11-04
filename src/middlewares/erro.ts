@@ -16,6 +16,7 @@ export const tratarErro: ErrorRequestHandler = (erro, _req, res, _next) => {
   if (erro instanceof AppError) {
     return res.status(erro.status).json({ erro: erro.message });
   }
+  if (erro?.type === 'entity.too.large') return res.status(413).json({ erro: 'Arquivo grande demais' });
   console.error(erro);
   return res.status(500).json({ erro: 'Erro interno' });
 };

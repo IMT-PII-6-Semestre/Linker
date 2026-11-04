@@ -57,7 +57,10 @@ export async function obterPerfil(id: number, tipo: TipoUsuario) {
 
 export async function atualizarPerfilCandidato(id: number, entrada: EntradaPerfilCandidato) {
   const { nomeCompleto, cpf, email, celular, ...perfil } = entrada;
-  const local = await geocodificar(perfil.cep);
+  // Só regeocodifica se o CEP mudou: com o mesmo CEP, uma falha da API apagaria a localização.
+  // ponytail: perfil que ficou sem localização no cadastro só é refeito quando o CEP mudar.
+  const atual = await candidatos.buscarPerfilCandidato(id);
+  const local = atual?.cep === perfil.cep ? null : await geocodificar(perfil.cep);
   await emTransacao(async (cliente) => {
     await usuarios.atualizarUsuario(cliente, id, { nomeCompleto, email, cpfCnpj: cpf, telefone: celular });
     await candidatos.atualizarPerfilCandidato(cliente, id, perfil, local);

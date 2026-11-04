@@ -25,14 +25,19 @@ export async function inserirVaga(
   return rows[0].id;
 }
 
-export async function atualizarVaga(id: number, vaga: EntradaVaga, local: Local): Promise<void> {
+/** `local` null = o CEP não mudou: cidade/UF/lat/lng atuais ficam como estão. */
+export async function atualizarVaga(id: number, vaga: EntradaVaga, local: Local | null): Promise<void> {
   await pool.query(
     `UPDATE vaga SET cargo = $2, descricao = $3, beneficios = $4, horario = $5, cep = $6,
        skills_obrigatorias = $7, skills_desejaveis = $8, experiencia_minima = $9,
        escolaridade = $10, tipo_contrato = $11, modalidade = $12, faixa_salarial = $13,
-       cidade = $14, uf = $15, lat = $16, lng = $17
+       cidade = CASE WHEN $18 THEN cidade ELSE $14 END, uf = CASE WHEN $18 THEN uf ELSE $15 END,
+       lat = CASE WHEN $18 THEN lat ELSE $16 END, lng = CASE WHEN $18 THEN lng ELSE $17 END
      WHERE id = $1`,
-    [id, ...valores(vaga), local.cidade, local.uf, local.lat, local.lng],
+    [
+      id, ...valores(vaga),
+      local?.cidade ?? null, local?.uf ?? null, local?.lat ?? null, local?.lng ?? null, local === null,
+    ],
   );
 }
 

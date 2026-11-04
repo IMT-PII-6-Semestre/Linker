@@ -39,24 +39,26 @@ export async function inserirPerfilCandidato(
   );
 }
 
+/** `local` null = o CEP não mudou: cidade/UF/lat/lng atuais ficam como estão. */
 export async function atualizarPerfilCandidato(
   cliente: PoolClient,
   usuarioId: number,
   dados: DadosPerfil,
-  local: Local,
+  local: Local | null,
 ): Promise<void> {
   await cliente.query(
     `UPDATE perfil_candidato SET
        data_nascimento = $2, cep = $3, escolaridade = $4, cargo_desejado = $5, formacao = $6,
        experiencias = $7, anos_experiencia = $8, tipos_contrato = $9, modalidades = $10,
        faixa_salarial = $11, soft_skills = $12, hard_skills = $13,
-       cidade = $14, uf = $15, lat = $16, lng = $17
+       cidade = CASE WHEN $18 THEN cidade ELSE $14 END, uf = CASE WHEN $18 THEN uf ELSE $15 END,
+       lat = CASE WHEN $18 THEN lat ELSE $16 END, lng = CASE WHEN $18 THEN lng ELSE $17 END
      WHERE usuario_id = $1`,
     [
       usuarioId, dados.dataNascimento, dados.cep, dados.escolaridade, dados.cargoDesejado,
       dados.formacao, dados.experiencias, dados.anosExperiencia, dados.tiposContrato,
       dados.modalidades, dados.faixaSalarial, dados.softSkills, dados.hardSkills,
-      local.cidade, local.uf, local.lat, local.lng,
+      local?.cidade ?? null, local?.uf ?? null, local?.lat ?? null, local?.lng ?? null, local === null,
     ],
   );
 }

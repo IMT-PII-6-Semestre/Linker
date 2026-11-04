@@ -10,6 +10,7 @@ async function vagaDaEmpresa(vagaId: number, empresaId: number) {
   const vaga = await vagas.buscarVaga(vagaId);
   if (!vaga) throw naoEncontrado('Vaga não encontrada');
   if (vaga.empresaId !== empresaId) throw proibido('Esta vaga é de outra empresa');
+  return vaga;
 }
 
 async function vagaPublica(vagaId: number, empresaId: number) {
@@ -24,8 +25,10 @@ export async function criarVaga(empresaId: number, entrada: EntradaVaga) {
 }
 
 export async function editarVaga(vagaId: number, empresaId: number, entrada: EntradaVaga) {
-  await vagaDaEmpresa(vagaId, empresaId);
-  await vagas.atualizarVaga(vagaId, entrada, await geocodificar(entrada.cep));
+  const atual = await vagaDaEmpresa(vagaId, empresaId);
+  // Mesmo CEP → mantém a localização (ver perfil.service.ts).
+  const local = atual.cep === entrada.cep ? null : await geocodificar(entrada.cep);
+  await vagas.atualizarVaga(vagaId, entrada, local);
   return vagaPublica(vagaId, empresaId);
 }
 

@@ -37,7 +37,13 @@ test('sem token → 401; admin → 403', async () => {
   assert.equal((await api('/api/perfil', { token: admin.token })).status, 403);
 });
 
-test('PUT /perfil edita e regeocodifica; e-mail de outro → 409', async () => {
+const localDoCandidato = async (email: string) =>
+  (await pool.query(
+    'SELECT p.cidade, p.lat FROM perfil_candidato p JOIN usuario u ON u.id = p.usuario_id WHERE u.email = $1', [email])).rows[0];
+const localDaVaga = async (id: string) =>
+  (await pool.query('SELECT cidade, lat FROM vaga WHERE id = $1', [id])).rows[0];
+
+test('PUT /perfil edita; e-mail de outro → 409', async () => {
   const email = `p${Date.now()}@teste.com`;
   const { token } = await json(await api('/api/auth/cadastro/candidato', { metodo: 'POST', corpo: candidatoValido(email) }));
   const { senha: _, ...edicao } = candidatoValido(email);
@@ -48,6 +54,37 @@ test('PUT /perfil edita e regeocodifica; e-mail de outro → 409', async () => {
 
   const dup = await api('/api/perfil', { metodo: 'PUT', token, corpo: { ...edicao, email: 'ana@email.com' } });
   assert.equal(dup.status, 409);
+});
+
+test('PUT /perfil com a API de CEP fora: mesmo CEP mantém a localização, CEP novo limpa', async () => {
+  const email = `l${Date.now()}@teste.com`;
+  const { token } = await json(await api('/api/auth/cadastro/candidato', { metodo: 'POST', corpo: candidatoValido(email) }));
+  const { senha: _, ...edicao } = candidatoValido(email);
+  cep.ok = false;
+  try {
+    assert.equal((await api('/api/perfil', { metodo: 'PUT', token, corpo: { ...edicao, cargoDesejado: 'Outro' } })).status, 200);
+    assert.deepEqual(await localDoCandidato(email), { cidade: 'São Paulo', lat: -23.5632188 });
+
+    // CEP diferente: a localização antiga já não vale, e sem API fica nula.
+    assert.equal((await api('/api/perfil', { metodo: 'PUT', token, corpo: { ...edicao, cep: '20040-020' } })).status, 200);
+    assert.deepEqual(await localDoCandidato(email), { cidade: null, lat: null });
+  } finally {
+    cep.ok = true;
+  }
+});
+
+test('PUT /vagas/:id com a API de CEP fora: mesmo CEP mantém a localização', async () => {
+  const token = await login('rh@empresa.com');
+  const vaga = await json(await api('/api/vagas', { metodo: 'POST', token, corpo: vagaValida }));
+  cep.ok = false;
+  try {
+    const res = await api(`/api/vagas/${vaga.id}`, { metodo: 'PUT', token, corpo: { ...vagaValida, cargo: 'Outro' } });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await localDaVaga(vaga.id), { cidade: 'São Paulo', lat: -23.5632188 });
+  } finally {
+    cep.ok = true;
+    await api(`/api/vagas/${vaga.id}`, { metodo: 'DELETE', token });
+  }
 });
 
 test('geocodificação fora do ar: o cadastro salva mesmo assim, sem cidade', async () => {

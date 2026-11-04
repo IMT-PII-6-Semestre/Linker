@@ -11,15 +11,10 @@ export async function pesosAtivos(): Promise<{ versao: number; pesos: Pesos }> {
 }
 
 /**
- * Pares candidato × vaga que passam nos filtros eliminatórios da spec, para quem está vendo:
- * `candidatoId` fixo (feed do candidato) ou `vagaId` fixo (feed da empresa). Exatamente um dos dois.
- * Cargo e texto livre são calculados aqui porque dependem de pg_trgm / full-text.
- * ponytail: unaccent não é IMMUTABLE, então não há índice nessas expressões; no volume do PII
- * não faz falta. Índice funcional (wrapper IMMUTABLE) se o feed passar de milhares de pares.
+ * Colunas que `paraPost` (feed.service.ts) lê de um par candidato × vaga. Exige os aliases
+ * p (perfil_candidato), uc (usuário candidato), v (vaga) e ue (usuário empresa). A fase 4 reaproveita.
  */
-export async function paresDoFeed(f: { candidatoId: number | null; vagaId: number | null; vistoPor: Lado }) {
-  const { rows } = await pool.query(
-    `SELECT p.usuario_id AS candidato_id, uc.nome_completo AS candidato_nome, uc.foto_url AS candidato_foto,
+export const COLUNAS_PAR = `p.usuario_id AS candidato_id, uc.nome_completo AS candidato_nome, uc.foto_url AS candidato_foto,
             date_part('year', age(p.data_nascimento))::int AS idade,
             p.escolaridade AS c_escolaridade, p.cargo_desejado, p.formacao, p.experiencias, p.anos_experiencia,
             p.hard_skills, p.soft_skills, p.modalidades, p.tipos_contrato, p.faixa_salarial AS c_faixa_salarial,
@@ -28,7 +23,18 @@ export async function paresDoFeed(f: { candidatoId: number | null; vagaId: numbe
             v.cargo, v.descricao, v.beneficios, v.horario, v.cep, v.skills_obrigatorias, v.skills_desejaveis,
             v.experiencia_minima, v.escolaridade AS v_escolaridade, v.tipo_contrato, v.modalidade,
             v.faixa_salarial AS v_faixa_salarial,
-            v.cidade AS v_cidade, v.uf AS v_uf, v.lat AS v_lat, v.lng AS v_lng,
+            v.cidade AS v_cidade, v.uf AS v_uf, v.lat AS v_lat, v.lng AS v_lng`;
+
+/**
+ * Pares candidato × vaga que passam nos filtros eliminatórios da spec, para quem está vendo:
+ * `candidatoId` fixo (feed do candidato) ou `vagaId` fixo (feed da empresa). Exatamente um dos dois.
+ * Cargo e texto livre são calculados aqui porque dependem de pg_trgm / full-text.
+ * ponytail: unaccent não é IMMUTABLE, então não há índice nessas expressões; no volume do PII
+ * não faz falta. Índice funcional (wrapper IMMUTABLE) se o feed passar de milhares de pares.
+ */
+export async function paresDoFeed(f: { candidatoId: number | null; vagaId: number | null; vistoPor: Lado }) {
+  const { rows } = await pool.query(
+    `SELECT ${COLUNAS_PAR},
             similarity(unaccent(lower(p.cargo_desejado)), unaccent(lower(v.cargo)))::float8 AS sim_cargo,
             -- OR entre os termos da descrição (plainto_tsquery usa AND e quase nunca casaria); 32 = r/(r+1) → [0,1)
             ts_rank(to_tsvector('portuguese', p.formacao || ' ' || p.experiencias),

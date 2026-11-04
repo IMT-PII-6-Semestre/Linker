@@ -57,3 +57,27 @@ export const empresaValida = (email: string) => ({
   endereco: 'Av. Paulista, 1000', telefone: '(11) 3333-4444', email, senha: '123456',
   vaga: vagaValida,
 });
+
+/** Contas novas por teste (e-mail único), para os testes não dependerem do estado deixado por outros. */
+export function fixtures(api: (rota: string, opcoes?: any) => Promise<Response>) {
+  const json = async (res: Response) => (await res.json()) as any;
+  let n = 0;
+  const unico = () => `${Date.now()}${n++}`;
+  return {
+    async candidato(over: Record<string, unknown> = {}) {
+      const corpo = await json(await api('/api/auth/cadastro/candidato', {
+        metodo: 'POST', corpo: { ...candidatoValido(`c${unico()}@teste.com`), ...over },
+      }));
+      return { token: corpo.token as string, id: corpo.usuario.id as number };
+    },
+    /** Empresa nova; `vagaId` = a primeira vaga (do cadastro). */
+    async empresa(vaga: Record<string, unknown> = {}) {
+      const corpo = await json(await api('/api/auth/cadastro/empresa', {
+        metodo: 'POST', corpo: { ...empresaValida(`e${unico()}@teste.com`), vaga: { ...vagaValida, ...vaga } },
+      }));
+      const token = corpo.token as string;
+      const perfil = await json(await api('/api/perfil', { token }));
+      return { token, id: corpo.usuario.id as number, vagaId: perfil.vagas[0].id as string };
+    },
+  };
+}

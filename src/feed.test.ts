@@ -2,32 +2,16 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { pool } from './db/pool.js';
 import { aleatorio } from './services/feed.service.js';
-import { candidatoValido, empresaValida, usarServidor, vagaValida } from './test-helpers.js';
+import { fixtures, usarServidor, vagaValida } from './test-helpers.js';
 
 const { api } = usarServidor();
 const json = async (res: Response) => (await res.json()) as any;
+let n = 0;
+const unico = () => `${Date.now()}${n++}`;
 const nunca = () => 0.99; // ε-greedy nunca explora → ordem pura do score
 aleatorio.rng = nunca;
 
-let n = 0;
-const unico = () => `${Date.now()}${n++}`;
-
-async function candidato(over: Record<string, unknown> = {}) {
-  const corpo = await json(await api('/api/auth/cadastro/candidato', {
-    metodo: 'POST', corpo: { ...candidatoValido(`c${unico()}@teste.com`), ...over },
-  }));
-  return { token: corpo.token as string, id: corpo.usuario.id as number };
-}
-
-/** Empresa nova; `vaga` = a primeira vaga (do cadastro). */
-async function empresa(vaga: Record<string, unknown> = {}) {
-  const corpo = await json(await api('/api/auth/cadastro/empresa', {
-    metodo: 'POST', corpo: { ...empresaValida(`e${unico()}@teste.com`), vaga: { ...vagaValida, ...vaga } },
-  }));
-  const token = corpo.token as string;
-  const perfil = await json(await api('/api/perfil', { token }));
-  return { token, id: corpo.usuario.id as number, vagaId: perfil.vagas[0].id as string };
-}
+const { candidato, empresa } = fixtures(api);
 const novaVaga = async (token: string, over: Record<string, unknown>) =>
   (await json(await api('/api/vagas', { metodo: 'POST', token, corpo: { ...vagaValida, ...over } }))).id as string;
 

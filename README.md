@@ -110,6 +110,7 @@ Todas as rotas ficam sob `/api`. O corpo das requisições e das respostas é JS
 | `DELETE` | `/api/conversas/:id` | participante | — | `204` desfaz o match (some chat e mensagens) |
 | `POST` | `/api/conversas/:id/bloqueio` | participante | — | `204` bloqueia o outro lado e desfaz o match |
 | `POST` | `/api/conversas/:id/denuncia` | participante | `{ reason, details }` (`reason` = `REPORT_REASONS` do front) | `204` |
+| `GET` | `/api/admin/snapshot` | admin | — | `200` `PlatformSnapshot` do front (dados brutos; o front calcula as métricas com `computeMetrics`) |
 
 - **Login por origem:** `admin` só entra pelo `web`; `candidato` e `empresa` só pelo
   `mobile`. Origem errada → `403`.
@@ -127,6 +128,10 @@ Todas as rotas ficam sob `/api`. O corpo das requisições e das respostas é JS
 - **Chat:** o `:id` é o id do match (o mesmo `matchId` do swipe). Quem não participa da
   conversa recebe `404`, igual a uma conversa que não existe. Denunciar não encerra a
   conversa; bloquear e desfazer apagam o match. Sem websocket: o front usa polling.
+- **Snapshot do admin:** `curtidas` são os swipes `like` dos dois lados e `matches` os matches
+  existentes (match desfeito ou bloqueado sai do total e dos gráficos). Cadastros novos contam
+  candidatos e empresas. `matchesPorSemana` traz as últimas 8 semanas (começam na segunda),
+  da mais antiga para a atual, com 0 nas semanas sem match.
 
 O corpo dos cadastros é o mesmo payload que o front monta em
 `Linker-front-rn/src/features/auth/domain/registration.ts` (`toCandidatoSignUp` /
@@ -378,9 +383,9 @@ Pronto:
 - feed com o algoritmo de match (filtros, score, exploração ε-greedy e log em
   `exibicao`) e swipe com match transacional;
 - chat: conversas, mensagens com não lidas, desfazer match, bloquear e denunciar;
+- admin: `GET /api/admin/snapshot` com as agregações do painel;
 - testes automatizados (`npm test`).
 
 Falta (o front já tem as telas, usando dados fake):
 
-- **Admin:** endpoint de métricas (`/api/admin/snapshot`);
 - **Validação do algoritmo:** script que recalibra os pesos a partir dos swipes.

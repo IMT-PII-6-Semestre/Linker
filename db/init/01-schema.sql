@@ -1,5 +1,5 @@
 -- Esboço de schema do MVP do Linker.
--- Fonte da verdade: .claude/models/modelagem-dados.md (não editar aqui sem
+-- Fonte da verdade: docs/modelagem-dados.md (não editar aqui sem
 -- atualizar lá também). Roda automaticamente na primeira inicialização do
 -- volume de dados do Postgres (docker-entrypoint-initdb.d).
 

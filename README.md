@@ -64,11 +64,20 @@ npm run dev
 | `npm run build` | compila para `dist/` |
 | `npm start` | roda o que está em `dist/` (precisa de `build` antes) |
 | `npm test` | roda os testes (`node:test` + `tsx`): unitários e de integração |
+| `npm run match:validar` | valida o algoritmo com swipes sintéticos (ver abaixo) |
 | `npm run db:reset` | recria o banco do zero com schema e seed (**apaga os dados locais**) |
 
 Os testes de integração sobem a API numa porta livre e usam o Postgres do
 `DATABASE_URL`, com as contas do seed. Suba o banco antes (`docker compose up -d db`).
 Eles nunca chamam a API de CEP de verdade (ver `src/test-helpers.ts`).
+
+**Validação do algoritmo** (`npm run match:validar`): sem usuários reais, o script sorteia pesos
+"ideais" ocultos, simula ~5 mil swipes por lado e treina uma regressão logística (um modelo por
+lado). Ela só vê features e like/pass, e deve recuperar os pesos ocultos: o script imprime o erro
+por feature (esperado < 0,1) e sai com código 1 se passar disso. Opções: `-- --n=5000 --seed=2026 --beta=10`
+(`beta` = quão nítida é a decisão). Não grava nada, a menos que receba `--salvar`: aí cria a próxima
+versão em `config_pesos` **inativa** e imprime o `UPDATE` para ativá-la. A lógica está em
+`src/match/validacao.ts` e é coberta por `npm test`.
 
 ## Variáveis de ambiente
 
@@ -384,8 +393,8 @@ Pronto:
   `exibicao`) e swipe com match transacional;
 - chat: conversas, mensagens com não lidas, desfazer match, bloquear e denunciar;
 - admin: `GET /api/admin/snapshot` com as agregações do painel;
+- validação do algoritmo com swipes sintéticos (`npm run match:validar`);
 - testes automatizados (`npm test`).
 
-Falta (o front já tem as telas, usando dados fake):
-
-- **Validação do algoritmo:** script que recalibra os pesos a partir dos swipes.
+Falta: nada do plano do backend. O que resta é do front (`Api*Repository`, cliente HTTP,
+sessão persistida e websocket no chat).

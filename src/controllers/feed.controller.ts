@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
+import { invalido } from '../errors/app-error.js';
 import * as feed from '../services/feed.service.js';
 import * as swipe from '../services/swipe.service.js';
 
@@ -31,7 +32,7 @@ export const curtir: RequestHandler = async (req, res) => {
   const { postId, direction, vagaId } = swipeSchema.parse(req.body);
   const usuario = quem(req);
   if (usuario.tipo === 'empresa' && vagaId === undefined) {
-    return void res.status(400).json({ erro: 'A empresa precisa informar a vaga (vagaId)' });
+    throw invalido('A empresa precisa informar a vaga (vagaId)');
   }
   res.json(await swipe.registrarSwipe(usuario, { postId, direction, vagaId: vagaId ?? null }));
 };

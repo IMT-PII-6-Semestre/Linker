@@ -37,6 +37,21 @@ export async function buscarPorId(id: number): Promise<Usuario | null> {
   return rows[0] ? paraUsuario(rows[0]) : null;
 }
 
+export async function atualizarUsuario(
+  cliente: PoolClient,
+  id: number,
+  dados: { nomeCompleto: string; email: string; cpfCnpj: string; telefone: string },
+): Promise<void> {
+  await cliente.query(
+    'UPDATE usuario SET nome_completo = $2, email = $3, cpf_cnpj = $4, telefone = $5 WHERE id = $1',
+    [id, dados.nomeCompleto, dados.email, dados.cpfCnpj, dados.telefone],
+  );
+}
+
+export async function atualizarFoto(id: number, fotoUrl: string): Promise<void> {
+  await pool.query('UPDATE usuario SET foto_url = $2 WHERE id = $1', [id, fotoUrl]);
+}
+
 /** Só esta função devolve o hash — usada exclusivamente no login. */
 export async function buscarCredencialPorEmail(email: string) {
   const { rows } = await pool.query(

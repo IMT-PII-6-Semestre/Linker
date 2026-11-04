@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 import { app } from './app.js';
 import { pool } from './db/pool.js';
+import './test-helpers.js'; // mock da API de CEP
 
 // Integração: precisa do Postgres do docker-compose (`docker compose up -d`).
 let base = '';

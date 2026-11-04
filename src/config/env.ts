@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import path from 'node:path';
 
 function obrigatoria(nome: string): string {
   const valor = process.env[nome];
@@ -12,3 +13,6 @@ export const env = {
   jwtSecret: obrigatoria('JWT_SECRET'),
   jwtExpiraEm: process.env.JWT_EXPIRES_IN ?? '7d',
 };
+
+// ponytail: fotos em disco local; trocar por S3 quando houver deploy.
+export const pastaUploads = path.resolve('uploads');

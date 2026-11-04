@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { emTransacao } from '../db/pool.js';
 import { conflito, naoAutorizado, proibido } from '../errors/app-error.js';
+import { geocodificar } from './geocodificacao.service.js';
 import * as empresas from '../repositories/empresa.repository.js';
 import * as perfis from '../repositories/perfil-candidato.repository.js';
 import * as usuarios from '../repositories/usuario.repository.js';
@@ -28,6 +29,8 @@ export async function cadastrarCandidato(entrada: EntradaCadastroCandidato) {
   const senhaHash = await bcrypt.hash(entrada.senha, CUSTO_BCRYPT);
 
   const { nomeCompleto, cpf, email, celular, senha: _senha, ...perfil } = entrada;
+  // Fora da transação: não segura conexão do pool esperando a API de CEP.
+  const local = await geocodificar(perfil.cep);
 
   const usuario = await emTransacao(async (cliente) => {
     const criado = await usuarios.inserirUsuario(cliente, {
@@ -38,7 +41,7 @@ export async function cadastrarCandidato(entrada: EntradaCadastroCandidato) {
       cpfCnpj: cpf,
       telefone: celular,
     });
-    await perfis.inserirPerfilCandidato(cliente, criado.id, perfil);
+    await perfis.inserirPerfilCandidato(cliente, criado.id, perfil, local);
     return criado;
   }).catch(traduzirErroDeCadastro);
 
@@ -47,6 +50,7 @@ export async function cadastrarCandidato(entrada: EntradaCadastroCandidato) {
 
 export async function cadastrarEmpresa(entrada: EntradaCadastroEmpresa) {
   const senhaHash = await bcrypt.hash(entrada.senha, CUSTO_BCRYPT);
+  const local = await geocodificar(entrada.vaga.cep);
 
   const usuario = await emTransacao(async (cliente) => {
     const criado = await usuarios.inserirUsuario(cliente, {
@@ -63,7 +67,7 @@ export async function cadastrarEmpresa(entrada: EntradaCadastroEmpresa) {
       endereco: entrada.endereco,
     });
     // O cadastro da empresa já publica a primeira vaga (etapas "A vaga" e "Requisitos" do front).
-    await vagas.inserirVaga(cliente, criado.id, entrada.vaga);
+    await vagas.inserirVaga(cliente, criado.id, entrada.vaga, local);
     return criado;
   }).catch(traduzirErroDeCadastro);
 

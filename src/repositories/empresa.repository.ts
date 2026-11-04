@@ -4,14 +4,13 @@ export async function inserirEmpresa(
   cliente: PoolClient,
   dados: {
     usuarioId: number;
-    cnpj: string;
-    razaoSocial: string;
-    anosFundacao?: number;
+    dataFundacao: string;
+    endereco: string;
   },
 ): Promise<void> {
   await cliente.query(
-    `INSERT INTO empresa (usuario_id, cnpj, razao_social, anos_fundacao)
-     VALUES ($1, $2, $3, $4)`,
-    [dados.usuarioId, dados.cnpj, dados.razaoSocial, dados.anosFundacao ?? null],
+    `INSERT INTO empresa (usuario_id, data_fundacao, endereco)
+     VALUES ($1, $2, $3)`,
+    [dados.usuarioId, dados.dataFundacao, dados.endereco],
   );
 }

@@ -22,7 +22,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   Falhar 'Docker não encontrado. Instale o Docker Desktop: https://docs.docker.com/desktop/setup/install/windows-install/'
 }
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-  Falhar 'Node.js não encontrado. Instale o Node.js 20 ou mais novo: https://nodejs.org'
+  Falhar 'Node.js não encontrado. Instale o Node.js 22 ou mais novo: https://nodejs.org'
 }
 
 # 1. .env

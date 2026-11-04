@@ -21,7 +21,7 @@ Windows. Endpoints, estrutura de pastas e convenções estão no
    wsl --install
    ```
    Depois reinicie o computador.
-2. **Node.js 20 ou mais novo** (LTS): <https://nodejs.org>.
+2. **Node.js 22 ou mais novo** (LTS): <https://nodejs.org>.
 3. **Git**: <https://git-scm.com/download/win>.
 
 Confira no PowerShell:

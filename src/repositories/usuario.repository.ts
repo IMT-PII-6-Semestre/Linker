@@ -29,6 +29,14 @@ export async function inserirUsuario(
   return paraUsuario(rows[0]);
 }
 
+export async function buscarPorId(id: number): Promise<Usuario | null> {
+  const { rows } = await pool.query(
+    'SELECT id, tipo, nome_completo, email, criado_em FROM usuario WHERE id = $1',
+    [id],
+  );
+  return rows[0] ? paraUsuario(rows[0]) : null;
+}
+
 /** Só esta função devolve o hash — usada exclusivamente no login. */
 export async function buscarCredencialPorEmail(email: string) {
   const { rows } = await pool.query(

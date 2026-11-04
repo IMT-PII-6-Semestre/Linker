@@ -138,5 +138,7 @@ export type EntradaCadastroEmpresa = z.infer<typeof cadastroEmpresaSchema>;
 export const loginSchema = z.object({
   email: emailSchema,
   senha: z.string().min(1, 'Senha obrigatória'),
+  // Mesma origem do app-shell do front: admin entra pelo web; candidato e empresa pelo mobile.
+  origin: z.enum(['web', 'mobile']),
 });
 export type EntradaLogin = z.infer<typeof loginSchema>;

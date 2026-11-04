@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { emTransacao } from '../db/pool.js';
-import { conflito, naoAutorizado } from '../errors/app-error.js';
+import { conflito, naoAutorizado, proibido } from '../errors/app-error.js';
 import * as empresas from '../repositories/empresa.repository.js';
 import * as perfis from '../repositories/perfil-candidato.repository.js';
 import * as usuarios from '../repositories/usuario.repository.js';
@@ -15,6 +15,14 @@ import type {
 import type { TipoUsuario } from '../types/usuario.js';
 
 const CUSTO_BCRYPT = 12;
+
+// `aud` do token = originAudience do front (app-shell/origin.ts).
+export type Origem = 'web' | 'mobile';
+export const AUDIENCIAS = { web: 'contratador', mobile: 'app' } as const;
+const TIPOS_POR_ORIGEM: Record<Origem, TipoUsuario[]> = {
+  web: ['admin'],
+  mobile: ['candidato', 'empresa'],
+};
 
 export async function cadastrarCandidato(entrada: EntradaCadastroCandidato) {
   const senhaHash = await bcrypt.hash(entrada.senha, CUSTO_BCRYPT);
@@ -34,7 +42,7 @@ export async function cadastrarCandidato(entrada: EntradaCadastroCandidato) {
     return criado;
   }).catch(traduzirErroDeCadastro);
 
-  return { usuario, token: gerarToken(usuario.id, usuario.tipo) };
+  return { usuario, token: gerarToken(usuario.id, usuario.tipo, 'mobile') };
 }
 
 export async function cadastrarEmpresa(entrada: EntradaCadastroEmpresa) {
@@ -59,7 +67,7 @@ export async function cadastrarEmpresa(entrada: EntradaCadastroEmpresa) {
     return criado;
   }).catch(traduzirErroDeCadastro);
 
-  return { usuario, token: gerarToken(usuario.id, usuario.tipo) };
+  return { usuario, token: gerarToken(usuario.id, usuario.tipo, 'mobile') };
 }
 
 export async function login(entrada: EntradaLogin) {
@@ -71,8 +79,18 @@ export async function login(entrada: EntradaLogin) {
   if (!confere) throw naoAutorizado('E-mail ou senha inválidos');
 
   // Mesmo formato do cadastro: o front monta a Session a partir de `usuario`.
+  // Só depois da senha, para a origem não servir de oráculo sobre o tipo da conta.
   const { usuario } = credencial;
-  return { usuario, token: gerarToken(usuario.id, usuario.tipo) };
+  if (!TIPOS_POR_ORIGEM[entrada.origin].includes(usuario.tipo)) {
+    throw proibido('Esta conta não pode entrar por aqui');
+  }
+  return { usuario, token: gerarToken(usuario.id, usuario.tipo, entrada.origin) };
+}
+
+export async function obterUsuario(id: number) {
+  const usuario = await usuarios.buscarPorId(id);
+  if (!usuario) throw naoAutorizado('Usuário não existe mais');
+  return usuario;
 }
 
 // 23505 = unique_violation; o índice único de `usuario.email` é a única fonte
@@ -82,9 +100,10 @@ function traduzirErroDeCadastro(erro: any): never {
   throw erro;
 }
 
-function gerarToken(usuarioId: number, tipo: TipoUsuario) {
+function gerarToken(usuarioId: number, tipo: TipoUsuario, origem: Origem) {
   return jwt.sign({ tipo }, env.jwtSecret, {
     subject: String(usuarioId),
+    audience: AUDIENCIAS[origem],
     // jsonwebtoken tipa expiresIn como união de literais (ex. "7d"); nossa env
     // só garante string em runtime, então o formato é responsabilidade do .env.
     expiresIn: env.jwtExpiraEm as jwt.SignOptions['expiresIn'],

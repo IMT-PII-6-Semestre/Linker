@@ -26,6 +26,31 @@ const candidato = (email: string) => ({
   modalidades: ['Remoto'], senha: '123456',
 });
 
+const empresa = (email: string) => ({
+  cnpj: '11.222.333/0001-81', nomeEmpresa: 'Teste Ltda', dataFundacao: '15/03/2010',
+  endereco: 'Av. Paulista, 1000', telefone: '(11) 3333-4444', email, senha: '123456',
+  vaga: {
+    cargo: 'Dev', descricao: 'APIs', beneficios: 'VR', horario: 'seg a sex', cep: '01310-100',
+    skillsObrigatorias: ['SQL'], skillsDesejaveis: [], experienciaMinima: 0, escolaridade: 'Médio',
+    tipoContrato: 'CLT', faixaSalarial: 'A combinar', modalidade: 'Remoto',
+  },
+});
+
+test('cadastro de empresa (com a primeira vaga) e login', async () => {
+  const email = `e${Date.now()}@teste.com`;
+
+  const cad = await post('/auth/cadastro/empresa', empresa(email));
+  assert.equal(cad.status, 201);
+  const { usuario } = (await cad.json()) as { usuario: { id: number; tipo: string } };
+  assert.equal(usuario.tipo, 'empresa');
+
+  const { rows } = await pool.query('SELECT count(*)::int AS n FROM vaga WHERE empresa_id = $1', [usuario.id]);
+  assert.equal(rows[0].n, 1);
+
+  const ok = await post('/auth/login', { email, senha: '123456', origin: 'mobile' });
+  assert.equal(ok.status, 200);
+});
+
 test('cadastro, login e e-mail duplicado', async () => {
   const email = `t${Date.now()}@teste.com`;
 

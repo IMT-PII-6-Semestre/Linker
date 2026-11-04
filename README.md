@@ -8,7 +8,7 @@ quando há interesse dos dois lados. Projeto Integrador Interdisciplinar (PII) d
 Este repositório é a **API REST**. O app (Expo/React Native) fica no
 `Linker-front-rn`.
 
-Stack: **Node.js 20 + Express 4 + TypeScript**, **PostgreSQL 16** (Docker),
+Stack: **Node.js 22 + Express 4 + TypeScript**, **PostgreSQL 16** (Docker),
 validação com **Zod**, senha com **bcrypt**, autenticação com **JWT**.
 
 - [Rodando](#rodando)
@@ -24,7 +24,7 @@ validação com **Zod**, senha com **bcrypt**, autenticação com **JWT**.
 
 ## Rodando
 
-Pré-requisitos: **Docker** (Docker Desktop no macOS/Windows) e **Node.js ≥ 20**.
+Pré-requisitos: **Docker** (Docker Desktop no macOS/Windows) e **Node.js ≥ 22** (o `npm test` usa glob no `node --test`, que não existe no 20).
 
 > **Windows:** use `.\start.cmd` no lugar do `./start.sh`. O guia completo, com
 > pré-requisitos, comandos em PowerShell e problemas comuns, está em

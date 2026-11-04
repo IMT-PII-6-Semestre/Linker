@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { after, before } from 'node:test';
 import { app } from './app.js';
@@ -61,8 +62,8 @@ export const empresaValida = (email: string) => ({
 /** Contas novas por teste (e-mail único), para os testes não dependerem do estado deixado por outros. */
 export function fixtures(api: (rota: string, opcoes?: any) => Promise<Response>) {
   const json = async (res: Response) => (await res.json()) as any;
-  let n = 0;
-  const unico = () => `${Date.now()}${n++}`;
+  // UUID, não Date.now(): os arquivos de teste rodam em processos paralelos e colidiam no mesmo ms.
+  const unico = () => randomUUID();
   return {
     async candidato(over: Record<string, unknown> = {}) {
       const corpo = await json(await api('/api/auth/cadastro/candidato', {

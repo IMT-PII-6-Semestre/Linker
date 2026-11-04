@@ -6,7 +6,7 @@ import { geocodificar } from './geocodificacao.service.js';
 import { obterPerfil } from './perfil.service.js';
 
 /** 404 se não existe, 403 se é de outra empresa. */
-async function vagaDaEmpresa(vagaId: number, empresaId: number) {
+export async function vagaDaEmpresa(vagaId: number, empresaId: number) {
   const vaga = await vagas.buscarVaga(vagaId);
   if (!vaga) throw naoEncontrado('Vaga não encontrada');
   if (vaga.empresaId !== empresaId) throw proibido('Esta vaga é de outra empresa');

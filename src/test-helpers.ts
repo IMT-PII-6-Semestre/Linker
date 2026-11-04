@@ -51,3 +51,9 @@ export const vagaValida = {
   skillsObrigatorias: ['Node.js'], skillsDesejaveis: [], experienciaMinima: 1, escolaridade: 'Médio',
   tipoContrato: 'CLT', faixaSalarial: 'A combinar', modalidade: 'Remoto',
 };
+
+export const empresaValida = (email: string) => ({
+  cnpj: '11.222.333/0001-81', nomeEmpresa: 'Teste Ltda', dataFundacao: '15/03/2010',
+  endereco: 'Av. Paulista, 1000', telefone: '(11) 3333-4444', email, senha: '123456',
+  vaga: vagaValida,
+});

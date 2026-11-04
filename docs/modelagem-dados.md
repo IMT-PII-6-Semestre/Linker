@@ -135,6 +135,44 @@ Pertence a um `chat`. Um chat acumula N mensagens.
 | `conteudo`     | —     | corpo da mensagem |
 | `enviado_em`   | —     | timestamp |
 
+### `bloqueio`
+Quem bloqueou quem. Uma linha por sentido; o feed esconde o par nos dois (fase 3 lê, fase 4 escreve).
+
+| Campo       | Chave | Observações |
+|-------------|-------|-------------|
+| `autor_id`  | PK, FK → `usuario.id` | quem bloqueou |
+| `alvo_id`   | PK, FK → `usuario.id` | quem foi bloqueado (≠ autor) |
+| `criado_em` | —     | timestamp |
+
+### `config_pesos`
+Pesos do score, versionados (spec do algoritmo). Só uma versão com `ativa = true`.
+
+| Campo       | Chave | Observações |
+|-------------|-------|-------------|
+| `versao`    | PK    | |
+| `pesos`     | —     | JSONB `{"A": {feature: peso}, "B": {feature: peso}}`; A = lado do candidato, B = lado da empresa |
+| `ativa`     | —     | índice único parcial: no máximo uma ativa |
+| `criado_em` | —     | timestamp |
+
+A v1 (pesos escolhidos à mão) vem no próprio `04-match.sql`, porque o feed não funciona sem ela.
+
+### `exibicao`
+Log obrigatório da spec: uma linha por par exibido, para o lado que o viu. O
+resultado (like/pass) não fica aqui; o treino junta com `swipe` pelo par.
+
+| Campo          | Chave | Observações |
+|----------------|-------|-------------|
+| `id`           | PK    | |
+| `candidato_id` | FK → `perfil_candidato.usuario_id` | |
+| `vaga_id`      | FK → `vaga.id` | |
+| `visto_por`    | —     | `candidato` \| `empresa` |
+| `versao_pesos` | FK → `config_pesos.versao` | |
+| `posicao`      | —     | 1 = topo do feed (corrige viés de posição) |
+| `exploracao`   | —     | `true` se o item veio do sorteio ε-greedy |
+| `features_a`, `features_b` | — | JSONB com as features de cada lado |
+| `score_a`, `score_b`, `score_final` | — | `score_final = √(A·B)` |
+| `criado_em`    | —     | timestamp |
+
 ---
 
 ## Relacionamentos
@@ -276,6 +314,53 @@ CREATE TABLE mensagem (
   conteudo     TEXT NOT NULL,
   enviado_em   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Fase 3 (db/init/04-match.sql)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS unaccent;
+
+-- Quem bloqueou quem (um sentido por linha; o feed esconde o par nos dois sentidos).
+CREATE TABLE bloqueio (
+  autor_id  BIGINT NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+  alvo_id   BIGINT NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (autor_id, alvo_id),
+  CHECK (autor_id <> alvo_id)
+);
+
+-- Pesos versionados do score (spec do algoritmo). Só uma versão ativa por vez.
+CREATE TABLE config_pesos (
+  versao    INTEGER PRIMARY KEY,
+  pesos     JSONB NOT NULL,                  -- {"A": {feature: peso}, "B": {feature: peso}}
+  ativa     BOOLEAN NOT NULL DEFAULT false,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX config_pesos_uma_ativa ON config_pesos (ativa) WHERE ativa;
+
+-- v1: pesos iniciais escolhidos à mão (AHP). A v2 sai do script da fase 6.
+INSERT INTO config_pesos (versao, pesos, ativa) VALUES (1, '{
+  "A": {"cargo": 0.5, "salario": 0.25, "local": 0.25},
+  "B": {"cargo": 0.3, "skills": 0.25, "experiencia": 0.1, "escolaridade": 0.1, "texto": 0.1, "local": 0.15}
+}', true);
+
+-- Log obrigatório da spec: uma linha por par exibido, para o lado que o viu.
+-- O resultado não fica aqui: está em `swipe` e o treino junta pelo par.
+CREATE TABLE exibicao (
+  id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  candidato_id BIGINT NOT NULL REFERENCES perfil_candidato(usuario_id) ON DELETE CASCADE,
+  vaga_id      BIGINT NOT NULL REFERENCES vaga(id) ON DELETE CASCADE,
+  visto_por    TEXT NOT NULL CHECK (visto_por IN ('candidato', 'empresa')),
+  versao_pesos INTEGER NOT NULL REFERENCES config_pesos(versao),
+  posicao      INTEGER NOT NULL,             -- 1 = topo do feed
+  exploracao   BOOLEAN NOT NULL,
+  features_a   JSONB NOT NULL,
+  features_b   JSONB NOT NULL,
+  score_a      DOUBLE PRECISION NOT NULL,
+  score_b      DOUBLE PRECISION NOT NULL,
+  score_final  DOUBLE PRECISION NOT NULL,
+  criado_em    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX exibicao_par ON exibicao (candidato_id, vaga_id);
 ```
 
 ---

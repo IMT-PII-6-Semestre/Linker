@@ -63,8 +63,12 @@ npm run dev
 | `npm run typecheck` | checa os tipos (`tsc --noEmit`). Rode antes de commitar |
 | `npm run build` | compila para `dist/` |
 | `npm start` | roda o que está em `dist/` (precisa de `build` antes) |
+| `npm test` | roda os testes (`node:test` + `tsx`): unitários e de integração |
+| `npm run db:reset` | recria o banco do zero com schema e seed (**apaga os dados locais**) |
 
-Ainda não existe suíte de testes.
+Os testes de integração sobem a API numa porta livre e usam o Postgres do
+`DATABASE_URL`, com as contas do seed. Suba o banco antes (`docker compose up -d db`).
+Eles nunca chamam a API de CEP de verdade (ver `src/test-helpers.ts`).
 
 ## Variáveis de ambiente
 
@@ -85,11 +89,34 @@ Se faltar uma variável obrigatória, a API não sobe e mostra
 
 Todas as rotas ficam sob `/api`. O corpo das requisições e das respostas é JSON.
 
-| Método | Rota | Auth | Corpo | Resposta |
+| Método | Rota | Quem | Corpo / query | Resposta |
 |---|---|---|---|---|
 | `POST` | `/api/auth/cadastro/candidato` | — | `CandidatoSignUp` do front | `201` `{ usuario, token }` |
 | `POST` | `/api/auth/cadastro/empresa` | — | `EmpresaSignUp` do front (com a primeira `vaga`) | `201` `{ usuario, token }` |
-| `POST` | `/api/auth/login` | — | `email`, `senha` | `200` `{ usuario, token }` |
+| `POST` | `/api/auth/login` | — | `email`, `senha`, `origin` (`web` \| `mobile`) | `200` `{ usuario, token }` |
+| `GET` | `/api/auth/me` | logado | — | `200` `{ usuario }` |
+| `GET` | `/api/perfil` | candidato, empresa | — | `200` `Profile` do front; empresa inclui `vagas[]` |
+| `PUT` | `/api/perfil` | candidato, empresa | campos do cadastro, sem senha | `200` `Profile` |
+| `PUT` | `/api/perfil/foto` | candidato, empresa | imagem crua (`Content-Type: image/*`, até 5 MB) | `200` `Profile`; a foto fica em `/uploads/...` |
+| `POST` | `/api/vagas` | empresa | `VagaInfo` do front | `201` vaga criada |
+| `PUT` | `/api/vagas/:id` | empresa dona | `VagaInfo` do front | `200` vaga editada |
+| `DELETE` | `/api/vagas/:id` | empresa dona | — | `204` |
+| `GET` | `/api/feed` | candidato, empresa | `?query=&uf=&vagaId=` | `200` `FeedPost[]` do front, ordenado por score |
+| `POST` | `/api/swipe` | candidato, empresa | `{ postId, direction: 'like' \| 'pass', vagaId }` | `200` `{ matched, matchId }` |
+
+- **Login por origem:** `admin` só entra pelo `web`; `candidato` e `empresa` só pelo
+  `mobile`. Origem errada → `403`.
+- **Perfil e vagas:** o CEP é geocodificado ao salvar (AwesomeAPI CEP), gravando
+  cidade, UF e coordenadas. Se a API estiver fora, salva só o CEP; o cadastro nunca
+  falha por isso. Editar a vaga de outra empresa → `403`.
+- **Feed:** o candidato vê vagas; a empresa vê candidatos para uma `vagaId` dela
+  (sem `vagaId`, o feed vem vazio; vaga de outra empresa → `403`). Pares
+  incompatíveis (modalidade, tipo de contrato, Jovem Aprendiz fora de 14–24 anos),
+  já decididos por quem está vendo ou bloqueados não aparecem. Cada item exibido é
+  registrado em `exibicao`. O score segue o algoritmo de match (`src/match/`).
+- **Swipe:** `postId` é a vaga (candidato) ou o candidato (empresa, que manda também
+  a `vagaId`). A primeira decisão de cada lado vale. Like dos dois lados cria o
+  `match` e o `chat`; `matchId` é o id da conversa.
 
 O corpo dos cadastros é o mesmo payload que o front monta em
 `Linker-front-rn/src/features/auth/domain/registration.ts` (`toCandidatoSignUp` /
@@ -119,10 +146,12 @@ curl -X POST localhost:3000/api/auth/cadastro/candidato \
 
 curl -X POST localhost:3000/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"ana@email.com","senha":"123456"}'
+  -d '{"email":"ana@email.com","senha":"123456","origin":"mobile"}'
 ```
 
-O token é um JWT: `sub` é o id do usuário e `tipo` é `candidato` ou `empresa`.
+O token é um JWT: `sub` é o id do usuário, `tipo` é `candidato`, `empresa` ou
+`admin`, e `aud` diz a origem (`app` para o mobile, `contratador` para o web).
+Token sem `aud` é recusado com `401`.
 Rotas protegidas recebem o token no cabeçalho
 `Authorization: Bearer <token>`.
 
@@ -146,7 +175,9 @@ Todo erro volta como `{ "erro": "mensagem" }`, com o status HTTP correspondente:
 ├── start.sh                # sobe tudo (Docker + Postgres + API) — macOS/Linux
 ├── start.cmd / start.ps1   # o mesmo no Windows (ver README.windows.md)
 ├── docker-compose.yml      # Postgres 16 para desenvolvimento
-├── db/init/01-schema.sql   # schema; roda na 1ª subida do banco
+├── db/init/                # schema (01-, 02-, ...) e seed (99-); rodam na 1ª subida do banco
+├── docs/modelagem-dados.md # modelagem: fonte da verdade do schema
+├── uploads/                # fotos de perfil (disco local, fora do git)
 ├── .env.example            # modelo do .env
 ├── .devcontainer/          # ambiente padronizado (VS Code / Codespaces)
 └── src/
@@ -161,7 +192,9 @@ Todo erro volta como `{ "erro": "mensagem" }`, com o status HTTP correspondente:
     ├── repositories/       # SQL — único lugar que fala com o banco
     ├── middlewares/        # autenticar (JWT), assincrono, tratarErro
     ├── errors/app-error.ts # AppError + atalhos (invalido, naoAutorizado, ...)
-    └── types/              # tipos de domínio + extensão do Request do Express
+    ├── match/              # algoritmo de match puro: features, score, ε-greedy
+    ├── types/              # tipos de domínio + extensão do Request do Express
+    └── *.test.ts           # testes (node:test); helpers em test-helpers.ts
 ```
 
 O que fica em cada camada (e o que **não** fica):
@@ -176,7 +209,8 @@ O que fica em cada camada (e o que **não** fica):
 - **repositories**: um arquivo por tabela, uma função por consulta. É **o único
   lugar** com SQL e o único que converte `snake_case` → `camelCase`.
 - **middlewares**:
-  - `autenticar` lê o `Bearer` e preenche `req.usuario = { id, tipo }`;
+  - `autenticar` lê o `Bearer`, confere o `aud` e preenche `req.usuario = { id, tipo }`;
+  - `exigirTipo(...tipos)` barra com `403` quem não é de um dos tipos;
   - `assincrono` envolve cada controller para que um erro async chegue ao
     `tratarErro` (o Express 4 não faz isso sozinho);
   - `tratarErro` transforma qualquer erro na resposta JSON padrão.
@@ -204,7 +238,7 @@ Exemplo: `GET /api/vagas/:id`.
 1. **Repository**: `src/repositories/vaga.repository.ts`
    ```ts
    export async function buscarPorId(id: number) {
-     const { rows } = await pool.query('SELECT * FROM vaga WHERE id = $1', [id]);
+     const { rows } = await pool.query('SELECT id, empresa_id, cargo FROM vaga WHERE id = $1', [id]);
      return rows[0] ? paraVaga(rows[0]) : null;   // converte snake_case → camelCase
    }
    ```
@@ -230,23 +264,27 @@ Exemplo: `GET /api/vagas/:id`.
    ```
 5. **Rota**: `src/routes/vaga.routes.ts`
    ```ts
-   router.get('/vagas/:id', autenticar, assincrono(controller.obter));
+   router.get('/vagas/:id', autenticar, exigirTipo('candidato', 'empresa'), assincrono(controller.obter));
    ```
-   Coloque o `autenticar` antes do controller quando a rota precisar de login.
+   Coloque o `autenticar` antes do controller quando a rota precisar de login, e
+   o `exigirTipo` quando só alguns tipos de usuário podem usá-la.
    Dentro do controller, quem está logado fica em `req.usuario!.id`.
 6. **Registrar** em `src/app.ts`: `app.use('/api', vagaRoutes);`. O registro tem
    de vir **antes** do `app.use(tratarErro)`.
-7. Rode `npm run typecheck` e teste com `curl`.
+7. Escreva o teste de integração (veja `src/perfil.test.ts`) e rode
+   `npm run typecheck && npm test`.
 
 ## Banco de dados
 
 `docker-compose.yml` sobe só o Postgres 16, na porta `5432`.
 
-- O schema está em `db/init/01-schema.sql`. Ele roda **apenas na primeira
+- O schema está em `db/init/`, em arquivos numerados que rodam em ordem
+  (`01-schema.sql`, `02-admin.sql`, `03-localizacao.sql`, `04-match.sql`), e o
+  `99-seed.sql` grava os dados de teste. Eles rodam **apenas na primeira
   subida**, porque o `docker-entrypoint-initdb.d` só executa quando o volume está
-  vazio. Alterou o SQL? Recrie o banco (isto **apaga os dados**):
+  vazio. Mudou o schema? Recrie o banco (isto **apaga os dados**):
   ```bash
-  docker compose down -v && docker compose up -d db
+  npm run db:reset
   ```
 - Os dados ficam no volume `pgdata`. `docker compose down` (sem `-v`) para o
   container e mantém os dados.
@@ -258,16 +296,25 @@ Tabelas:
 
 | Tabela | O que guarda |
 |---|---|
-| `usuario` | base de todo usuário: `tipo` (`candidato`/`empresa`), nome, e-mail único, hash da senha, CPF/CNPJ, telefone, foto |
-| `perfil_candidato` | extensão 1:1 do candidato: nascimento, CEP, escolaridade, cargo desejado, formação, experiências e anos de experiência, contratos, modalidades, faixa salarial, skills |
+| `usuario` | base de todo usuário: `tipo` (`candidato`/`empresa`/`admin`), nome, e-mail único, hash da senha, CPF/CNPJ, telefone, foto |
+| `perfil_candidato` | extensão 1:1 do candidato: nascimento, CEP (com cidade, UF e coordenadas), escolaridade, cargo desejado, formação, experiências e anos de experiência, contratos, modalidades, faixa salarial, skills |
 | `empresa` | extensão 1:1 da empresa: data de fundação, endereço |
-| `vaga` | vagas de uma empresa (1:N): cargo, descrição, benefícios, horário, CEP, skills obrigatórias e desejáveis, experiência mínima, escolaridade, contrato, modalidade, faixa salarial |
+| `vaga` | vagas de uma empresa (1:N): cargo, descrição, benefícios, horário, CEP (com cidade, UF e coordenadas), skills obrigatórias e desejáveis, experiência mínima, escolaridade, contrato, modalidade, faixa salarial |
 | `swipe` | cada like/pass sobre um par candidato–vaga; `autor` diz se quem decidiu foi o candidato ou a empresa (que avalia em nome de uma vaga). Uma decisão por lado, por par |
 | `match` | like recíproco: candidato + vaga + empresa |
 | `chat` / `mensagem` | um chat por match, com N mensagens |
+| `bloqueio` | quem bloqueou quem; o feed esconde o par nos dois sentidos |
+| `config_pesos` | pesos do score, versionados; só uma versão ativa (a v1 vem no `04-match.sql`) |
+| `exibicao` | log de cada item exibido no feed: features, scores, posição, se veio da exploração e versão dos pesos |
 
-Por enquanto não existem migrations. Toda mudança de schema vai no
-`01-schema.sql`, e cada pessoa recria o banco local depois de puxar a mudança.
+Contas do seed (senha `123456`): `admin@linker.com` (admin, entra pelo `web`),
+`ana@email.com` e `bruno@email.com` (candidatos), `rh@empresa.com` e
+`rh@empresabeta.com` (empresas).
+
+Por enquanto não existem migrations. Toda mudança de schema entra num arquivo
+novo numerado em `db/init/` (sem editar os antigos) e também em
+`docs/modelagem-dados.md`. Depois de puxar a mudança, cada pessoa roda
+`npm run db:reset`.
 
 ## Convenções
 
@@ -290,7 +337,7 @@ Por enquanto não existem migrations. Toda mudança de schema vai no
 `.devcontainer/` dá a todo mundo o mesmo ambiente Linux, seja o host Windows,
 macOS ou Linux:
 
-- Node.js 22 LTS (o projeto exige `>=20`);
+- Node.js 22 LTS (o projeto exige `>=22`);
 - Docker dentro do container, para o `docker compose`;
 - portas `3000` e `5432` encaminhadas automaticamente;
 - dependências instaladas na criação do container (`npm ci` com lock, senão
@@ -314,15 +361,15 @@ Também funciona no **GitHub Codespaces**. Dentro do container, rode `./start.sh
 
 Pronto:
 
-- cadastro de candidato e de empresa;
-- login com JWT;
-- middleware de autenticação (ainda não usado por nenhuma rota).
+- cadastro de candidato e de empresa, login com JWT, origem (`web`/`mobile`) e
+  papel `admin` (conta só pelo seed);
+- perfil (ler, editar, foto) e CRUD de vagas, com geocodificação do CEP;
+- feed com o algoritmo de match (filtros, score, exploração ε-greedy e log em
+  `exibicao`) e swipe com match transacional;
+- testes automatizados (`npm test`).
 
 Falta (o front já tem as telas, usando dados fake):
 
-- **Perfil:** ler e editar o perfil, foto, CRUD de vagas;
-- **Feed:** listar vagas (candidato) ou candidatos para uma vaga (empresa) não avaliados, com filtro, e o swipe que
-  gera match quando o like é recíproco;
 - **Chat:** conversas, mensagens, desfazer match, bloquear, denunciar;
-- **Admin:** papel `admin` e endpoint de métricas;
-- testes automatizados.
+- **Admin:** endpoint de métricas (`/api/admin/snapshot`);
+- **Validação do algoritmo:** script que recalibra os pesos a partir dos swipes.

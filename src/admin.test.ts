@@ -36,7 +36,7 @@ test('snapshot via HTTP: formato do PlatformSnapshot e o seed dentro dos totais'
   assert.equal(s.matchesPorSemana.length, admin.SEMANAS);
   const inicios: number[] = s.matchesPorSemana.map((w: any) => w.inicio);
   assert.deepEqual(inicios, [...inicios].sort((a, b) => a - b)); // da mais antiga para a atual
-  const { rows } = await pool.query(`SELECT floor(extract(epoch from date_trunc('week', now())) * 1000)::bigint AS ms`);
+  const { rows } = await pool.query(`SELECT floor(extract(epoch from date_trunc('week', now(), '${admin.FUSO}')) * 1000)::bigint AS ms`);
   assert.equal(inicios.at(-1), rows[0].ms); // a última é a semana corrente
 });
 
@@ -66,12 +66,13 @@ test('agregações com números exatos, em tabelas temporárias (isoladas do que
       INSERT INTO empresa VALUES (3), (4), (7);
       INSERT INTO vaga VALUES (1, 3), (2, 3), (3, 3), (4, 4);   -- empresa 3: 3 vagas, 4: 1, 7: nenhuma
       INSERT INTO swipe VALUES ('like'), ('like'), ('like'), ('pass'), ('pass');
-      INSERT INTO match VALUES
-        (date_trunc('week', now())),                              -- semana atual
-        (date_trunc('week', now())),
-        (date_trunc('week', now()) - interval '7 days'),          -- semana passada
-        (date_trunc('week', now()) - interval '49 days'),         -- 7 semanas atrás: a mais antiga da janela
-        (date_trunc('week', now()) - interval '56 days');         -- 8 semanas atrás: fora
+      -- Semanas no horário de Brasília: começam na segunda 00:00 BRT (03:00 UTC).
+      CREATE TEMP VIEW semana_atual AS SELECT date_trunc('week', now(), '${admin.FUSO}') AS w;
+      INSERT INTO match SELECT w FROM semana_atual;                                -- semana atual
+      INSERT INTO match SELECT w + interval '1 hour' FROM semana_atual;
+      INSERT INTO match SELECT w - interval '2 hours' FROM semana_atual;          -- domingo 22h BRT: semana passada
+      INSERT INTO match SELECT w - interval '49 days' FROM semana_atual;          -- 7 semanas atrás: a mais antiga da janela
+      INSERT INTO match SELECT w - interval '56 days' FROM semana_atual;          -- 8 semanas atrás: fora
     `);
     const s = await admin.snapshot(cliente);
 

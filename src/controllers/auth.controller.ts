@@ -18,6 +18,10 @@ export const cadastrarEmpresa: RequestHandler = async (req, res) => {
   res.status(201).json(resultado);
 };
 
+export const me: RequestHandler = async (req, res) => {
+  res.json({ usuario: await servico.obterUsuario(req.usuario!.id) });
+};
+
 export const login: RequestHandler = async (req, res) => {
   const entrada = loginSchema.parse(req.body);
   const resultado = await servico.login(entrada);

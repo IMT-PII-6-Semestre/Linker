@@ -33,10 +33,10 @@ test('cadastro, login e e-mail duplicado', async () => {
   assert.equal(cad.status, 201);
   assert.ok(((await cad.json()) as { token?: string }).token);
 
-  const ok = await post('/auth/login', { email, senha: '123456' });
+  const ok = await post('/auth/login', { email, senha: '123456', origin: 'mobile' });
   assert.equal(ok.status, 200);
 
-  const ruim = await post('/auth/login', { email, senha: 'errada' });
+  const ruim = await post('/auth/login', { email, senha: 'errada', origin: 'mobile' });
   assert.equal(ruim.status, 401);
 
   const dup = await post('/auth/cadastro/candidato', candidato(email));

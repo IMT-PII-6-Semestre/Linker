@@ -6,8 +6,8 @@ INSERT INTO usuario (tipo, nome_completo, email, senha_hash, cpf_cnpj, telefone)
   ('candidato', 'Ana Souza',      'ana@email.com',      '$2b$10$1z6ZzujdH6P0WOEOhojAquR/njb1q8PUMiLts1gEhcf8FPGwzrzNG', '52998224725',    '11987654321'),
   ('candidato', 'Bruno Lima',     'bruno@email.com',    '$2b$10$1z6ZzujdH6P0WOEOhojAquR/njb1q8PUMiLts1gEhcf8FPGwzrzNG', '11144477735',    '21987654321'),
   ('empresa',   'Empresa Alfa',   'rh@empresa.com',     '$2b$10$1z6ZzujdH6P0WOEOhojAquR/njb1q8PUMiLts1gEhcf8FPGwzrzNG', '11222333000181', '1133334444'),
-  ('empresa',   'Empresa Beta',   'rh@empresabeta.com', '$2b$10$1z6ZzujdH6P0WOEOhojAquR/njb1q8PUMiLts1gEhcf8FPGwzrzNG', '11444777000161', '2133334444');
--- Admin: tipo 'admin' só passa a existir no CHECK na fase 1; o seed da conta entra lá.
+  ('empresa',   'Empresa Beta',   'rh@empresabeta.com', '$2b$10$1z6ZzujdH6P0WOEOhojAquR/njb1q8PUMiLts1gEhcf8FPGwzrzNG', '11444777000161', '2133334444'),
+  ('admin',     'Administrador',  'admin@linker.com',   '$2b$10$1z6ZzujdH6P0WOEOhojAquR/njb1q8PUMiLts1gEhcf8FPGwzrzNG', '00000000000',    '0000000000');
 
 INSERT INTO perfil_candidato (usuario_id, data_nascimento, cep, escolaridade, cargo_desejado, formacao, experiencias,
                               anos_experiencia, tipos_contrato, modalidades, faixa_salarial, soft_skills, hard_skills)

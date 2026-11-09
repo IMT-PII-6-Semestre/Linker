@@ -13,6 +13,7 @@ Legenda: **PK** = chave primária · **FK** = chave estrangeira · demais = atri
 ## Entidades
 
 ### `usuario`
+
 Tabela base do cadastro. O campo `tipo` é o discriminador: define se a linha
 ganha um `perfil_candidato` **ou** uma `empresa` associada. Centralizar aqui
 evita duplicar nome, e-mail, senha, documento e telefone nas duas rotas.
@@ -20,187 +21,198 @@ evita duplicar nome, e-mail, senha, documento e telefone nas duas rotas.
 Os campos de todas as tabelas de cadastro espelham os formulários do front
 (`Linker-front-rn/src/features/auth/domain/registration.ts`).
 
-| Campo            | Chave | Observações |
-|------------------|-------|-------------|
-| `id`             | PK    | identidade da linha |
-| `tipo`           | —     | `candidato` \| `empresa` \| `admin` (discriminador; admin só vem do seed, sem cadastro público) |
-| `nome_completo`  | —     | nome da pessoa (candidato) ou nome da empresa |
-| `email`          | —     | único; usado no login |
-| `senha_hash`     | —     | nunca armazenar senha em texto puro |
-| `cpf_cnpj`       | —     | CPF para candidato, CNPJ para empresa; só dígitos |
-| `telefone`       | —     | celular do candidato / telefone da empresa; só dígitos |
-| `foto_url`       | —     | opcional; sem foto o app mostra as iniciais |
-| `criado_em`      | —     | timestamp de criação |
+| Campo           | Chave | Observações                                                                                     |
+| --------------- | ----- | ----------------------------------------------------------------------------------------------- |
+| `id`            | PK    | identidade da linha                                                                             |
+| `tipo`          | —     | `candidato` \| `empresa` \| `admin` (discriminador; admin só vem do seed, sem cadastro público) |
+| `nome_completo` | —     | nome da pessoa (candidato) ou nome da empresa                                                   |
+| `email`         | —     | único; usado no login                                                                           |
+| `senha_hash`    | —     | nunca armazenar senha em texto puro                                                             |
+| `cpf_cnpj`      | —     | CPF para candidato, CNPJ para empresa; só dígitos                                               |
+| `telefone`      | —     | celular do candidato / telefone da empresa; só dígitos                                          |
+| `foto_url`      | —     | opcional; sem foto o app mostra as iniciais                                                     |
+| `criado_em`     | —     | timestamp de criação                                                                            |
 
 ### `perfil_candidato`
+
 Extensão 1:1 de `usuario` quando `tipo = 'candidato'`. É o que as empresas veem
 no feed e o que o algoritmo usa para filtrar/ordenar vagas.
 
-| Campo             | Chave | Observações |
-|-------------------|-------|-------------|
-| `usuario_id`      | FK → `usuario.id` | também é a PK da tabela (1:1) |
-| `data_nascimento` | —     | `DATE`; idade é derivada (mín. 14 anos) |
-| `cep`             | —     | localização / proximidade no feed |
-| `cidade`, `uf`, `lat`, `lng` | — | geocodificados do CEP ao salvar; nulos se a API de CEP falhar |
-| `escolaridade`    | —     | opção fixa (ver decisão 6) |
-| `cargo_desejado`  | —     | texto livre |
-| `formacao`        | —     | texto livre (curso e instituição) |
-| `experiencias`    | —     | texto livre |
-| `anos_experiencia`| —     | inteiro 0–60; comparado com `vaga.experiencia_minima` |
-| `tipos_contrato[]`| —     | **array** de opções fixas; ao menos uma |
-| `modalidades[]`   | —     | **array** de opções fixas; ao menos uma |
-| `faixa_salarial`  | —     | opção fixa |
-| `soft_skills[]`   | —     | **array** no MVP (ver decisão 4) |
-| `hard_skills[]`   | —     | **array** no MVP (ver decisão 4) |
+| Campo                        | Chave             | Observações                                                   |
+| ---------------------------- | ----------------- | ------------------------------------------------------------- |
+| `usuario_id`                 | FK → `usuario.id` | também é a PK da tabela (1:1)                                 |
+| `data_nascimento`            | —                 | `DATE`; idade é derivada (mín. 14 anos)                       |
+| `cep`                        | —                 | localização / proximidade no feed                             |
+| `cidade`, `uf`, `lat`, `lng` | —                 | geocodificados do CEP ao salvar; nulos se a API de CEP falhar |
+| `escolaridade`               | —                 | opção fixa (ver decisão 6)                                    |
+| `cargo_desejado`             | —                 | texto livre                                                   |
+| `formacao`                   | —                 | texto livre (curso e instituição)                             |
+| `experiencias`               | —                 | texto livre                                                   |
+| `anos_experiencia`           | —                 | inteiro 0–60; comparado com `vaga.experiencia_minima`         |
+| `tipos_contrato[]`           | —                 | **array** de opções fixas; ao menos uma                       |
+| `modalidades[]`              | —                 | **array** de opções fixas; ao menos uma                       |
+| `faixa_salarial`             | —                 | opção fixa                                                    |
+| `soft_skills[]`              | —                 | **array** no MVP (ver decisão 4)                              |
+| `hard_skills[]`              | —                 | **array** no MVP (ver decisão 4)                              |
 
 ### `empresa`
+
 Extensão 1:1 de `usuario` quando `tipo = 'empresa'`. Nome e CNPJ ficam em
 `usuario` (`nome_completo`, `cpf_cnpj`).
 
-| Campo            | Chave | Observações |
-|------------------|-------|-------------|
-| `usuario_id`     | FK → `usuario.id` | também é a PK da tabela (1:1) |
-| `data_fundacao`  | —     | `DATE`; não pode estar no futuro |
-| `endereco`       | —     | texto livre |
+| Campo           | Chave             | Observações                      |
+| --------------- | ----------------- | -------------------------------- |
+| `usuario_id`    | FK → `usuario.id` | também é a PK da tabela (1:1)    |
+| `data_fundacao` | —                 | `DATE`; não pode estar no futuro |
+| `endereco`      | —                 | texto livre                      |
 
 ### `vaga`
+
 Publicada por uma `empresa`. Uma empresa tem N vagas; a primeira é criada no
 próprio cadastro da empresa.
 
-| Campo            | Chave | Observações |
-|------------------|-------|-------------|
-| `id`             | PK    | |
-| `empresa_id`     | FK → `empresa.usuario_id` | dono da vaga |
-| `cargo`          | —     | |
-| `descricao`      | —     | |
-| `beneficios`     | —     | texto livre no MVP |
-| `horario`        | —     | texto livre ("seg a sex, 9h às 18h") |
-| `cep`            | —     | local de trabalho; base da distância no feed |
-| `cidade`, `uf`, `lat`, `lng` | — | geocodificados do CEP ao salvar; nulos se a API de CEP falhar |
-| `skills_obrigatorias[]` | — | ao menos uma; pesam mais no score |
-| `skills_desejaveis[]`   | — | opcional |
-| `experiencia_minima`    | — | anos, 0–60 (0 = aceita iniciante) |
-| `escolaridade`   | —     | escolaridade mínima desejada; opção fixa |
-| `tipo_contrato`  | —     | opção fixa |
-| `modalidade`     | —     | opção fixa |
-| `faixa_salarial` | —     | opção fixa |
-| `criado_em`      | —     | timestamp |
+| Campo                        | Chave                     | Observações                                                   |
+| ---------------------------- | ------------------------- | ------------------------------------------------------------- |
+| `id`                         | PK                        |                                                               |
+| `empresa_id`                 | FK → `empresa.usuario_id` | dono da vaga                                                  |
+| `cargo`                      | —                         |                                                               |
+| `descricao`                  | —                         |                                                               |
+| `beneficios`                 | —                         | texto livre no MVP                                            |
+| `horario`                    | —                         | texto livre ("seg a sex, 9h às 18h")                          |
+| `cep`                        | —                         | local de trabalho; base da distância no feed                  |
+| `cidade`, `uf`, `lat`, `lng` | —                         | geocodificados do CEP ao salvar; nulos se a API de CEP falhar |
+| `skills_obrigatorias[]`      | —                         | ao menos uma; pesam mais no score                             |
+| `skills_desejaveis[]`        | —                         | opcional                                                      |
+| `experiencia_minima`         | —                         | anos, 0–60 (0 = aceita iniciante)                             |
+| `escolaridade`               | —                         | escolaridade mínima desejada; opção fixa                      |
+| `tipo_contrato`              | —                         | opção fixa                                                    |
+| `modalidade`                 | —                         | opção fixa                                                    |
+| `faixa_salarial`             | —                         | opção fixa                                                    |
+| `criado_em`                  | —                         | timestamp                                                     |
 
 ### `swipe`
+
 Registra **cada decisão** (like / pass) sobre um **par candidato–vaga**. O
 candidato avalia vagas; a empresa escolhe uma das suas vagas e avalia candidatos
 para ela. `autor` diz qual lado decidiu. Como o par é sempre o mesmo, as duas
 pontas são FKs reais.
 
-| Campo          | Chave | Observações |
-|----------------|-------|-------------|
-| `id`           | PK    | |
-| `candidato_id` | FK → `perfil_candidato.usuario_id` | candidato do par |
-| `vaga_id`      | FK → `vaga.id` | vaga do par |
-| `autor`        | —     | `candidato` \| `empresa` (quem decidiu) |
-| `direcao`      | —     | `like` \| `pass` (mesmos valores do front) |
-| `criado_em`    | —     | timestamp |
+| Campo          | Chave                              | Observações                                |
+| -------------- | ---------------------------------- | ------------------------------------------ |
+| `id`           | PK                                 |                                            |
+| `candidato_id` | FK → `perfil_candidato.usuario_id` | candidato do par                           |
+| `vaga_id`      | FK → `vaga.id`                     | vaga do par                                |
+| `autor`        | —                                  | `candidato` \| `empresa` (quem decidiu)    |
+| `direcao`      | —                                  | `like` \| `pass` (mesmos valores do front) |
+| `criado_em`    | —                                  | timestamp                                  |
 
 Único por `(candidato_id, vaga_id, autor)`: uma decisão de cada lado por par.
 Quando os dois autores deram like no mesmo par, a aplicação cria um `match`.
 
 ### `match`
+
 Guarda a tríade candidato–vaga–empresa. Cada match gera exatamente **um** `chat`.
 
-| Campo          | Chave | Observações |
-|----------------|-------|-------------|
-| `id`           | PK    | |
-| `candidato_id` | FK → `usuario.id` | lado candidato |
-| `vaga_id`      | FK → `vaga.id`    | vaga que casou |
+| Campo          | Chave                     | Observações                                      |
+| -------------- | ------------------------- | ------------------------------------------------ |
+| `id`           | PK                        |                                                  |
+| `candidato_id` | FK → `usuario.id`         | lado candidato                                   |
+| `vaga_id`      | FK → `vaga.id`            | vaga que casou                                   |
 | `empresa_id`   | FK → `empresa.usuario_id` | dona da vaga (desnormalizado p/ consulta rápida) |
-| `criado_em`    | —     | timestamp |
+| `criado_em`    | —                         | timestamp                                        |
 
 ### `chat`
+
 Relação 1:1 com `match`. Existe só para agrupar as mensagens.
 
-| Campo       | Chave | Observações |
-|-------------|-------|-------------|
-| `id`        | PK    | |
+| Campo       | Chave           | Observações |
+| ----------- | --------------- | ----------- |
+| `id`        | PK              |             |
 | `match_id`  | FK → `match.id` | único (1:1) |
-| `criado_em` | —     | timestamp |
+| `criado_em` | —               | timestamp   |
 
 ### `mensagem`
+
 Pertence a um `chat`. Um chat acumula N mensagens.
 
-| Campo          | Chave | Observações |
-|----------------|-------|-------------|
-| `id`           | PK    | |
-| `chat_id`      | FK → `chat.id`    | |
-| `remetente_id` | FK → `usuario.id` | quem enviou |
-| `conteudo`     | —     | corpo da mensagem, de 1 a 1000 caracteres |
-| `enviado_em`   | —     | timestamp |
-| `lida_em`      | —     | quando o destinatário leu; `null` = não lida |
+| Campo          | Chave             | Observações                                  |
+| -------------- | ----------------- | -------------------------------------------- |
+| `id`           | PK                |                                              |
+| `chat_id`      | FK → `chat.id`    |                                              |
+| `remetente_id` | FK → `usuario.id` | quem enviou                                  |
+| `conteudo`     | —                 | corpo da mensagem, de 1 a 1000 caracteres    |
+| `enviado_em`   | —                 | timestamp                                    |
+| `lida_em`      | —                 | quando o destinatário leu; `null` = não lida |
 
 ### `denuncia`
+
 Denúncia para a moderação. Sobrevive ao fim do match (desfazer ou bloquear apaga o match).
 
-| Campo       | Chave | Observações |
-|-------------|-------|-------------|
-| `id`        | PK    | |
-| `autor_id`  | FK → `usuario.id` | quem denunciou |
-| `alvo_id`   | FK → `usuario.id` | o outro lado do match (≠ autor) |
+| Campo       | Chave             | Observações                                             |
+| ----------- | ----------------- | ------------------------------------------------------- |
+| `id`        | PK                |                                                         |
+| `autor_id`  | FK → `usuario.id` | quem denunciou                                          |
+| `alvo_id`   | FK → `usuario.id` | o outro lado do match (≠ autor)                         |
 | `match_id`  | FK → `match.id`   | `ON DELETE SET NULL`: a denúncia fica mesmo sem o match |
-| `motivo`    | —     | um dos `REPORT_REASONS` do front (CHECK no banco) |
-| `detalhes`  | —     | texto livre, até 1000 caracteres |
-| `criado_em` | —     | timestamp |
+| `motivo`    | —                 | um dos `REPORT_REASONS` do front (CHECK no banco)       |
+| `detalhes`  | —                 | texto livre, até 1000 caracteres                        |
+| `criado_em` | —                 | timestamp                                               |
 
 ### `bloqueio`
+
 Quem bloqueou quem. Uma linha por sentido; o feed esconde o par nos dois (fase 3 lê, fase 4 escreve).
 
-| Campo       | Chave | Observações |
-|-------------|-------|-------------|
-| `autor_id`  | PK, FK → `usuario.id` | quem bloqueou |
+| Campo       | Chave                 | Observações                  |
+| ----------- | --------------------- | ---------------------------- |
+| `autor_id`  | PK, FK → `usuario.id` | quem bloqueou                |
 | `alvo_id`   | PK, FK → `usuario.id` | quem foi bloqueado (≠ autor) |
-| `criado_em` | —     | timestamp |
+| `criado_em` | —                     | timestamp                    |
 
 ### `config_pesos`
+
 Pesos do score, versionados (spec do algoritmo). Só uma versão com `ativa = true`.
 
-| Campo       | Chave | Observações |
-|-------------|-------|-------------|
-| `versao`    | PK    | |
+| Campo       | Chave | Observações                                                                                      |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------ |
+| `versao`    | PK    |                                                                                                  |
 | `pesos`     | —     | JSONB `{"A": {feature: peso}, "B": {feature: peso}}`; A = lado do candidato, B = lado da empresa |
-| `ativa`     | —     | índice único parcial: no máximo uma ativa |
-| `criado_em` | —     | timestamp |
+| `ativa`     | —     | índice único parcial: no máximo uma ativa                                                        |
+| `criado_em` | —     | timestamp                                                                                        |
 
 A v1 (pesos escolhidos à mão) vem no próprio `04-match.sql`, porque o feed não funciona sem ela.
 
 ### `exibicao`
+
 Log obrigatório da spec: uma linha por par exibido, para o lado que o viu. O
 resultado (like/pass) não fica aqui; o treino junta com `swipe` pelo par.
 
-| Campo          | Chave | Observações |
-|----------------|-------|-------------|
-| `id`           | PK    | |
-| `candidato_id` | FK → `perfil_candidato.usuario_id` | |
-| `vaga_id`      | FK → `vaga.id` | |
-| `visto_por`    | —     | `candidato` \| `empresa` |
-| `versao_pesos` | FK → `config_pesos.versao` | |
-| `posicao`      | —     | 1 = topo do feed (corrige viés de posição) |
-| `exploracao`   | —     | `true` se o item veio do sorteio ε-greedy |
-| `features_a`, `features_b` | — | JSONB com as features de cada lado |
-| `score_a`, `score_b`, `score_final` | — | `score_final = √(A·B)` |
-| `criado_em`    | —     | timestamp |
+| Campo                               | Chave                              | Observações                                |
+| ----------------------------------- | ---------------------------------- | ------------------------------------------ |
+| `id`                                | PK                                 |                                            |
+| `candidato_id`                      | FK → `perfil_candidato.usuario_id` |                                            |
+| `vaga_id`                           | FK → `vaga.id`                     |                                            |
+| `visto_por`                         | —                                  | `candidato` \| `empresa`                   |
+| `versao_pesos`                      | FK → `config_pesos.versao`         |                                            |
+| `posicao`                           | —                                  | 1 = topo do feed (corrige viés de posição) |
+| `exploracao`                        | —                                  | `true` se o item veio do sorteio ε-greedy  |
+| `features_a`, `features_b`          | —                                  | JSONB com as features de cada lado         |
+| `score_a`, `score_b`, `score_final` | —                                  | `score_final = √(A·B)`                     |
+| `criado_em`                         | —                                  | timestamp                                  |
 
 ---
 
 ## Relacionamentos
 
-| De → Para                | Cardinalidade      | Notas |
-|--------------------------|--------------------|-------|
-| `usuario` → `perfil_candidato` | 1 : 1        | quando `tipo = 'candidato'` |
-| `usuario` → `empresa`          | 1 : 1        | quando `tipo = 'empresa'` |
-| `empresa` → `vaga`             | 1 : N        | |
-| `perfil_candidato` → `swipe`   | 1 : N        | swipes do par, dados por qualquer lado |
-| `vaga` → `swipe`               | 1 : N        | idem |
-| `swipe` → `match`              | 2 : 1 (fraca)| match nasce dos dois likes do mesmo par; não é FK direta |
-| `match` → `chat`               | 1 : 1        | |
-| `chat` → `mensagem`            | 1 : N        | |
+| De → Para                      | Cardinalidade | Notas                                                    |
+| ------------------------------ | ------------- | -------------------------------------------------------- |
+| `usuario` → `perfil_candidato` | 1 : 1         | quando `tipo = 'candidato'`                              |
+| `usuario` → `empresa`          | 1 : 1         | quando `tipo = 'empresa'`                                |
+| `empresa` → `vaga`             | 1 : N         |                                                          |
+| `perfil_candidato` → `swipe`   | 1 : N         | swipes do par, dados por qualquer lado                   |
+| `vaga` → `swipe`               | 1 : N         | idem                                                     |
+| `swipe` → `match`              | 2 : 1 (fraca) | match nasce dos dois likes do mesmo par; não é FK direta |
+| `match` → `chat`               | 1 : 1         |                                                          |
+| `chat` → `mensagem`            | 1 : N         |                                                          |
 
 ---
 
@@ -396,18 +408,3 @@ CREATE TABLE denuncia (
   CHECK (autor_id <> alvo_id)
 );
 ```
-
----
-
-## Se optarem por Firestore (NoSQL)
-
-- `usuario`, `vaga` e `swipe` viram **coleções** próprias (o doc de `swipe`
-  guarda `candidato_id`, `vaga_id` e `autor`). `perfil_candidato` e
-  `empresa` viram **subcampos** do documento de `usuario` em vez de coleções
-  separadas.
-- `match` continua como coleção, guardando os três IDs relacionados
-  (`candidato_id`, `vaga_id`, `empresa_id`).
-- `chat` vira o **ID do documento** e `mensagem` uma **subcoleção** dele. Assim o
-  Firestore sincroniza novas mensagens em tempo real sem servidor próprio.
-- Sem JOIN: desnormalizar o que a tela precisa ler junto (ex.: nome/título do
-  outro lado do match dentro do próprio doc de `match`).

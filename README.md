@@ -106,7 +106,6 @@ Todas as rotas ficam sob `/api`. O corpo das requisições e das respostas é JS
 | `GET` | `/api/auth/me` | logado | — | `200` `{ usuario }` |
 | `GET` | `/api/perfil` | candidato, empresa | — | `200` `Profile` do front; empresa inclui `vagas[]` |
 | `PUT` | `/api/perfil` | candidato, empresa | campos do cadastro, sem senha | `200` `Profile` |
-| `PUT` | `/api/perfil/foto` | candidato, empresa | imagem crua (`Content-Type: image/*`, até 5 MB) | `200` `Profile`; a foto fica em `/uploads/...` |
 | `POST` | `/api/vagas` | empresa | `VagaInfo` do front | `201` vaga criada |
 | `PUT` | `/api/vagas/:id` | empresa dona | `VagaInfo` do front | `200` vaga editada |
 | `DELETE` | `/api/vagas/:id` | empresa dona | — | `204` |
@@ -199,9 +198,8 @@ Todo erro volta como `{ "erro": "mensagem" }`, com o status HTTP correspondente:
 ├── start.sh                # sobe tudo (Docker + Postgres + API) — macOS/Linux
 ├── start.cmd / start.ps1   # o mesmo no Windows (ver README.windows.md)
 ├── docker-compose.yml      # Postgres 16 para desenvolvimento
-├── db/init/                # schema (01-, 02-, ...) e seed (99-); rodam na 1ª subida do banco
+├── db/init/                # schema (01-05) e seed (99-); rodam na 1ª subida do banco
 ├── docs/modelagem-dados.md # modelagem: fonte da verdade do schema
-├── uploads/                # fotos de perfil (disco local, fora do git)
 ├── .env.example            # modelo do .env
 ├── .devcontainer/          # ambiente padronizado (VS Code / Codespaces)
 └── src/
@@ -303,7 +301,7 @@ Exemplo: `GET /api/vagas/:id`.
 `docker-compose.yml` sobe só o Postgres 16, na porta `5432`.
 
 - O schema está em `db/init/`, em arquivos numerados que rodam em ordem
-  (`01-schema.sql`, `02-admin.sql`, `03-localizacao.sql`, `04-match.sql`, `05-chat.sql`), e o
+  (`01-schema.sql` a `05-chat.sql`), e o
   `99-seed.sql` grava os dados de teste. Eles rodam **apenas na primeira
   subida**, porque o `docker-entrypoint-initdb.d` só executa quando o volume está
   vazio. Mudou o schema? Recrie o banco (isto **apaga os dados**):
@@ -320,7 +318,7 @@ Tabelas:
 
 | Tabela | O que guarda |
 |---|---|
-| `usuario` | base de todo usuário: `tipo` (`candidato`/`empresa`/`admin`), nome, e-mail único, hash da senha, CPF/CNPJ, telefone, foto |
+| `usuario` | base de todo usuário: `tipo` (`candidato`/`empresa`/`admin`), nome, e-mail único, hash da senha, CPF/CNPJ e telefone |
 | `perfil_candidato` | extensão 1:1 do candidato: nascimento, CEP (com cidade, UF e coordenadas), escolaridade, cargo desejado, formação, experiências e anos de experiência, contratos, modalidades, faixa salarial, skills |
 | `empresa` | extensão 1:1 da empresa: data de fundação, endereço |
 | `vaga` | vagas de uma empresa (1:N): cargo, descrição, benefícios, horário, CEP (com cidade, UF e coordenadas), skills obrigatórias e desejáveis, experiência mínima, escolaridade, contrato, modalidade, faixa salarial |
@@ -388,7 +386,7 @@ Pronto:
 
 - cadastro de candidato e de empresa, login com JWT, origem (`web`/`mobile`) e
   papel `admin` (conta só pelo seed);
-- perfil (ler, editar, foto) e CRUD de vagas, com geocodificação do CEP;
+- perfil (ler e editar) e CRUD de vagas, com geocodificação do CEP;
 - feed com o algoritmo de match (filtros, score, exploração ε-greedy e log em
   `exibicao`) e swipe com match transacional;
 - chat: conversas, mensagens com não lidas, desfazer match, bloquear e denunciar;

@@ -30,7 +30,7 @@ export async function atualizarEmpresa(
 
 export async function buscarPerfilEmpresa(usuarioId: number) {
   const { rows } = await pool.query(
-    `SELECT u.id, u.nome_completo, u.cpf_cnpj, u.email, u.telefone, u.foto_url,
+    `SELECT u.id, u.nome_completo, u.cpf_cnpj, u.email, u.telefone,
             to_char(e.data_fundacao, 'DD/MM/YYYY') AS data_fundacao, e.endereco
      FROM usuario u JOIN empresa e ON e.usuario_id = u.id
      WHERE u.id = $1`,
@@ -44,7 +44,6 @@ export async function buscarPerfilEmpresa(usuarioId: number) {
     cnpj: l.cpf_cnpj as string,
     email: l.email as string,
     telefone: l.telefone as string,
-    fotoUrl: l.foto_url as string | null,
     dataFundacao: l.data_fundacao as string,
     endereco: l.endereco as string,
   };

@@ -1,12 +1,9 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { test } from 'node:test';
-import { pastaUploads } from './config/env.js';
 import { pool } from './db/pool.js';
 import { candidatoValido, cep, usarServidor, vagaValida } from './test-helpers.js';
 
-const { api, base } = usarServidor();
+const { api } = usarServidor();
 
 const login = async (email: string) =>
   ((await (await api('/api/auth/login', { metodo: 'POST', corpo: { email, senha: '123456', origin: 'mobile' } })).json()) as { token: string }).token;
@@ -20,7 +17,7 @@ test('GET /perfil: candidato com máscaras e datas dd/mm/aaaa', async () => {
   assert.equal(p.cpf, '529.982.247-25');
   assert.equal(p.dataNascimento, '10/05/2000');
   assert.equal(p.cep, '01310-100');
-  assert.equal(p.fotoUri, null);
+  assert.equal('fotoUri' in p, false);
 });
 
 test('GET /perfil: empresa traz vagas[] com id string', async () => {
@@ -131,16 +128,7 @@ test('CRUD de vagas e posse', async () => {
   assert.equal((await api(`/api/vagas/${vaga.id}`, { metodo: 'DELETE', token: alfa })).status, 404);
 });
 
-test('PUT /perfil/foto grava em uploads/ e serve por /uploads', async () => {
+test('fotos de perfil não são aceitas', async () => {
   const token = await login('bruno@email.com');
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
-
-  assert.equal((await api('/api/perfil/foto', { metodo: 'PUT', token, bruto: Buffer.from('x'), tipo: 'text/plain' })).status, 400);
-
-  const res = await api('/api/perfil/foto', { metodo: 'PUT', token, bruto: png, tipo: 'image/png' });
-  assert.equal(res.status, 200);
-  const { fotoUri } = await json(res);
-  assert.match(fotoUri, /^\/uploads\/.+\.png$/);
-  assert.equal((await fetch(base() + fotoUri)).status, 200);
-  await fs.rm(path.join(pastaUploads, path.basename(fotoUri)));
+  assert.equal((await api('/api/perfil/foto', { metodo: 'PUT', token, bruto: Buffer.from('image'), tipo: 'image/png' })).status, 404);
 });

@@ -25,7 +25,6 @@ export function paraPost(par: Par, vistoPor: Lado) {
       id: String(par.vaga_id),
       empresaId: String(par.empresa_id),
       empresaNome: par.empresa_nome as string,
-      empresaFotoUri: par.empresa_foto as string | null,
       vaga: {
         cargo: par.cargo, descricao: par.descricao, beneficios: par.beneficios, horario: par.horario,
         cep: mascaraCep(par.cep), skillsObrigatorias: par.skills_obrigatorias,
@@ -43,7 +42,6 @@ export function paraPost(par: Par, vistoPor: Lado) {
     candidatoId: String(par.candidato_id),
     nome: par.candidato_nome as string,
     idade: par.idade as number,
-    fotoUri: par.candidato_foto as string | null,
     cargoDesejado: par.cargo_desejado as string,
     escolaridade: par.c_escolaridade as string,
     formacao: par.formacao as string,

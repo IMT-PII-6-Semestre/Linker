@@ -14,7 +14,6 @@ CREATE TABLE usuario (
   senha_hash    TEXT NOT NULL,
   cpf_cnpj      TEXT NOT NULL,               -- só dígitos
   telefone      TEXT NOT NULL,               -- celular do candidato / telefone da empresa, só dígitos
-  foto_url      TEXT,
   criado_em     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

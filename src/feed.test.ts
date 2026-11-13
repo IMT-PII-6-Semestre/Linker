@@ -128,6 +128,7 @@ test('feed ordenado por score, com formato do FeedPost e linha em exibicao por i
   const meus = posts.filter((p) => [bom.id, ruim.id].includes(Number(p.id)));
   assert.deepEqual(ids(meus), [String(bom.id), String(ruim.id)]);
   assert.equal(meus[0].kind, 'candidato');
+  assert.equal('fotoUri' in meus[0], false);
   assert.equal(meus[0].local, 'São Paulo - SP');
   assert.equal(typeof meus[0].idade, 'number');
   assert.deepEqual(meus[0].hardSkills, ['SQL', 'Python']);
@@ -149,6 +150,7 @@ test('feed ordenado por score, com formato do FeedPost e linha em exibicao por i
   const vagas = await feedDe(bom.token);
   const vaga = vagas.find((v) => v.id === e.vagaId);
   assert.equal(vaga.kind, 'vaga');
+  assert.equal('empresaFotoUri' in vaga, false);
   assert.equal(vaga.empresaId, String(e.id));
   assert.equal(vaga.vaga.cep, '01310-100');
   assert.equal(await contar(`SELECT count(*) FROM exibicao WHERE candidato_id = $1 AND visto_por = 'candidato'`, [bom.id]) > 0, true);

@@ -38,6 +38,7 @@ test('fluxo completo: match → mensagens → não lidas → lidas', async () =>
   const inicial = await json(await api(`/api/conversas/${conversa}`, { token: c.token }));
   assert.equal(inicial.id, conversa);
   assert.equal(inicial.participantName, 'Teste Ltda');
+  assert.equal('participantFotoUri' in inicial, false);
   assert.equal(inicial.subtitle, 'Engenheira de Dados');
   assert.equal(inicial.lastMessage, null);
   assert.equal(inicial.unreadCount, 0);

@@ -1,8 +1,5 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { pastaUploads } from '../config/env.js';
 import { emTransacao } from '../db/pool.js';
-import { conflito, invalido, naoEncontrado } from '../errors/app-error.js';
+import { conflito, naoEncontrado } from '../errors/app-error.js';
 import * as empresas from '../repositories/empresa.repository.js';
 import * as candidatos from '../repositories/perfil-candidato.repository.js';
 import * as usuarios from '../repositories/usuario.repository.js';
@@ -29,7 +26,7 @@ export async function obterPerfil(id: number, tipo: TipoUsuario) {
   if (tipo === 'candidato') {
     const p = await candidatos.buscarPerfilCandidato(id);
     if (!p) throw naoEncontrado('Perfil não encontrado');
-    const { id: _id, fotoUrl, ...campos } = p;
+    const { id: _id, ...campos } = p;
     return {
       role: 'candidato' as const,
       userId: String(id),
@@ -37,12 +34,11 @@ export async function obterPerfil(id: number, tipo: TipoUsuario) {
       cpf: mascaraCpf(p.cpf),
       celular: mascaraTelefone(p.celular),
       cep: mascaraCep(p.cep),
-      fotoUri: fotoUrl,
     };
   }
   const e = await empresas.buscarPerfilEmpresa(id);
   if (!e) throw naoEncontrado('Perfil não encontrado');
-  const { id: _id, fotoUrl, ...campos } = e;
+  const { id: _id, ...campos } = e;
   const lista = await vagas.listarVagasDaEmpresa(id);
   return {
     role: 'empresa' as const,
@@ -50,7 +46,6 @@ export async function obterPerfil(id: number, tipo: TipoUsuario) {
     ...campos,
     cnpj: mascaraCnpj(e.cnpj),
     telefone: mascaraTelefone(e.telefone),
-    fotoUri: fotoUrl,
     vagas: lista.map(({ empresaId: _, cep, ...v }) => ({ ...v, cep: mascaraCep(cep) })),
   };
 }
@@ -79,20 +74,6 @@ export async function atualizarPerfilEmpresa(id: number, entrada: EntradaPerfilE
     await empresas.atualizarEmpresa(cliente, id, entrada);
   }).catch(traduzirEmailDuplicado);
   return obterPerfil(id, 'empresa');
-}
-
-const EXTENSOES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
-
-export async function salvarFoto(id: number, tipo: TipoUsuario, mime: string | undefined, bytes: unknown) {
-  const ext = EXTENSOES[(mime ?? '').split(';')[0]];
-  if (!ext) throw invalido('Envie uma imagem JPEG, PNG ou WebP');
-  if (!Buffer.isBuffer(bytes) || bytes.length === 0) throw invalido('Imagem vazia');
-
-  const arquivo = `${id}-${Date.now()}.${ext}`;
-  await fs.mkdir(pastaUploads, { recursive: true });
-  await fs.writeFile(path.join(pastaUploads, arquivo), bytes);
-  await usuarios.atualizarFoto(id, `/uploads/${arquivo}`);
-  return obterPerfil(id, tipo);
 }
 
 // 23505 = unique_violation; o único índice único tocado aqui é o de `usuario.email`.

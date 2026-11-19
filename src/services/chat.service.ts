@@ -26,7 +26,6 @@ function paraConversa(l: Record<string, any>, eu: number) {
   return {
     id: String(matchId),
     participantName: (candidato ? l.empresa_nome : l.candidato_nome) as string,
-    participantFotoUri: (candidato ? l.empresa_foto : l.candidato_foto) as string | null,
     subtitle: (candidato ? l.cargo : l.cargo_desejado) as string,
     post: paraPost(l, lado),
     lastMessage:

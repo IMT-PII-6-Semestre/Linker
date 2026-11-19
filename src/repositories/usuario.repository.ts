@@ -48,10 +48,6 @@ export async function atualizarUsuario(
   );
 }
 
-export async function atualizarFoto(id: number, fotoUrl: string): Promise<void> {
-  await pool.query('UPDATE usuario SET foto_url = $2 WHERE id = $1', [id, fotoUrl]);
-}
-
 /** Só esta função devolve o hash — usada exclusivamente no login. */
 export async function buscarCredencialPorEmail(email: string) {
   const { rows } = await pool.query(

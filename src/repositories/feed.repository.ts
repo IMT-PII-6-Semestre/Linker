@@ -27,12 +27,12 @@ export async function salvarPesos(pesos: Pesos, db: Pick<PoolClient, 'query'> = 
  * Colunas que `paraPost` (feed.service.ts) lê de um par candidato × vaga. Exige os aliases
  * p (perfil_candidato), uc (usuário candidato), v (vaga) e ue (usuário empresa). A fase 4 reaproveita.
  */
-export const COLUNAS_PAR = `p.usuario_id AS candidato_id, uc.nome_completo AS candidato_nome, uc.foto_url AS candidato_foto,
+export const COLUNAS_PAR = `p.usuario_id AS candidato_id, uc.nome_completo AS candidato_nome,
             date_part('year', age(p.data_nascimento))::int AS idade,
             p.escolaridade AS c_escolaridade, p.cargo_desejado, p.formacao, p.experiencias, p.anos_experiencia,
             p.hard_skills, p.soft_skills, p.modalidades, p.tipos_contrato, p.faixa_salarial AS c_faixa_salarial,
             p.cidade AS c_cidade, p.uf AS c_uf, p.lat AS c_lat, p.lng AS c_lng,
-            v.id AS vaga_id, v.empresa_id, ue.nome_completo AS empresa_nome, ue.foto_url AS empresa_foto,
+            v.id AS vaga_id, v.empresa_id, ue.nome_completo AS empresa_nome,
             v.cargo, v.descricao, v.beneficios, v.horario, v.cep, v.skills_obrigatorias, v.skills_desejaveis,
             v.experiencia_minima, v.escolaridade AS v_escolaridade, v.tipo_contrato, v.modalidade,
             v.faixa_salarial AS v_faixa_salarial,

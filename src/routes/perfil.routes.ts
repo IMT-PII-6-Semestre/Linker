@@ -1,4 +1,4 @@
-import express, { Router } from 'express';
+import { Router } from 'express';
 import * as perfil from '../controllers/perfil.controller.js';
 import * as vaga from '../controllers/vaga.controller.js';
 import { autenticar, exigirTipo } from '../middlewares/autenticar.js';
@@ -10,8 +10,6 @@ const soEmpresa = [autenticar, exigirTipo('empresa')];
 
 router.get('/perfil', comPerfil, assincrono(perfil.obter));
 router.put('/perfil', comPerfil, assincrono(perfil.atualizar));
-router.put('/perfil/foto', comPerfil, express.raw({ type: 'image/*', limit: '5mb' }), assincrono(perfil.foto));
-
 router.post('/vagas', soEmpresa, assincrono(vaga.criar));
 router.put('/vagas/:id', soEmpresa, assincrono(vaga.editar));
 router.delete('/vagas/:id', soEmpresa, assincrono(vaga.remover));

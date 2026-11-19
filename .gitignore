@@ -25,6 +25,3 @@ logs/
 Thumbs.db
 .vscode/
 .idea/
-
-# Fotos de perfil (disco local)
-uploads/

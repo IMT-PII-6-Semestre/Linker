@@ -30,7 +30,6 @@ Os campos de todas as tabelas de cadastro espelham os formulários do front
 | `senha_hash`    | —     | nunca armazenar senha em texto puro                                                             |
 | `cpf_cnpj`      | —     | CPF para candidato, CNPJ para empresa; só dígitos                                               |
 | `telefone`      | —     | celular do candidato / telefone da empresa; só dígitos                                          |
-| `foto_url`      | —     | opcional; sem foto o app mostra as iniciais                                                     |
 | `criado_em`     | —     | timestamp de criação                                                                            |
 
 ### `perfil_candidato`
@@ -248,7 +247,7 @@ resultado (like/pass) não fica aqui; o treino junta com `swipe` pelo par.
 
 ## Esboço de DDL (PostgreSQL)
 
-> Schema final: `db/init/01-schema.sql` mais os arquivos seguintes (`02-admin.sql`, …). Mudou o SQL, mude aqui.
+> Schema final: `db/init/01-schema.sql` mais os arquivos seguintes (`02-admin.sql` a `05-chat.sql`). Mudou o SQL, mude aqui.
 
 ```sql
 CREATE TABLE usuario (
@@ -259,7 +258,6 @@ CREATE TABLE usuario (
   senha_hash    TEXT NOT NULL,
   cpf_cnpj      TEXT NOT NULL,               -- só dígitos
   telefone      TEXT NOT NULL,               -- celular do candidato / telefone da empresa, só dígitos
-  foto_url      TEXT,
   criado_em     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

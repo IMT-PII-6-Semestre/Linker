@@ -66,7 +66,7 @@ export async function atualizarPerfilCandidato(
 /** Perfil do candidato no formato do front; máscaras e datas dd/mm/aaaa ficam no service. */
 export async function buscarPerfilCandidato(usuarioId: number) {
   const { rows } = await pool.query(
-    `SELECT u.id, u.nome_completo, u.cpf_cnpj, u.email, u.telefone, u.foto_url,
+    `SELECT u.id, u.nome_completo, u.cpf_cnpj, u.email, u.telefone,
             to_char(p.data_nascimento, 'DD/MM/YYYY') AS data_nascimento,
             p.cep, p.escolaridade, p.cargo_desejado, p.formacao, p.experiencias,
             p.anos_experiencia, p.tipos_contrato, p.modalidades, p.faixa_salarial,
@@ -83,7 +83,6 @@ export async function buscarPerfilCandidato(usuarioId: number) {
     cpf: l.cpf_cnpj as string,
     email: l.email as string,
     celular: l.telefone as string,
-    fotoUrl: l.foto_url as string | null,
     dataNascimento: l.data_nascimento as string,
     cep: l.cep as string,
     escolaridade: l.escolaridade as string,

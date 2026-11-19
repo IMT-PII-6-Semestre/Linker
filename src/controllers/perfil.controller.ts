@@ -15,8 +15,3 @@ export const atualizar: RequestHandler = async (req, res) => {
       : await servico.atualizarPerfilEmpresa(id, perfilEmpresaSchema.parse(req.body)),
   );
 };
-
-export const foto: RequestHandler = async (req, res) => {
-  const { id, tipo } = req.usuario!;
-  res.json(await servico.salvarFoto(id, tipo, req.headers['content-type'], req.body));
-};

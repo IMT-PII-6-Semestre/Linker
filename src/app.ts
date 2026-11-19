@@ -8,7 +8,16 @@ import feedRoutes from './routes/feed.routes.js';
 import perfilRoutes from './routes/perfil.routes.js';
 
 export const app = express();
-
+app.use((req, res, next) => { 
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+})
 app.use(express.json());
 
 app.use('/uploads', express.static(pastaUploads));
